@@ -505,14 +505,23 @@ fn find_installed_forge(mc_dir: &PathBuf, mc_version: &str, loader: &str) -> Opt
     if !versions_dir.exists() {
         return None;
     }
+    // NeoForge names its versions like "21.1.230" (without the leading "1."),
+    // so a directory called "neoforge-21.1.230" does NOT contain the literal
+    // string "1.21.1". For neoforge we match on the version-without-1.-prefix
+    // form too.
+    let neoforge_short = mc_version.strip_prefix("1.").unwrap_or(mc_version);
     if let Ok(entries) = fs::read_dir(&versions_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            let matches = match loader {
+            let matches_loader = match loader {
                 "neoforge" => name.contains("neoforge"),
                 _ => name.contains("forge") && !name.contains("neoforge"),
             };
-            if matches && name.contains(mc_version) {
+            let matches_version = match loader {
+                "neoforge" => name.contains(mc_version) || name.contains(neoforge_short),
+                _ => name.contains(mc_version),
+            };
+            if matches_loader && matches_version {
                 let json = entry.path().join(format!("{}.json", name));
                 if json.exists() {
                     log(&format!("[{}] Found existing install: {}", loader, name));
