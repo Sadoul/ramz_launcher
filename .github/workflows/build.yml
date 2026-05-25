@@ -1,0 +1,115 @@
+name: Build and Release Ramz Launcher
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  check:
+    name: Check if release already exists
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - name: Check existing release
+        id: check
+        run: |
+          TAG=${{ github.ref_name }}
+          STATUS=$(gh release view "$TAG" --repo ${{ github.repository }} 2>&1 || true)
+          if echo "$STATUS" | grep -q "assets:"; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Release $TAG already has assets — skipping CI build"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Release $TAG has no assets — CI will build"
+          fi
+
+  build-main:
+    name: Build Main App
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          cache-on-failure: true
+          shared-key: main-ds-v2
+      - name: Install npm deps
+        run: npm ci
+      - name: Generate icons
+        run: npx @tauri-apps/cli icon images/icons/launcher.png
+      - name: Build Tauri app (NSIS)
+        run: npm run tauri build -- --bundles nsis
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launcher-exe
+          path: src-tauri/target/release/ramz-launcher.exe
+          retention-days: 1
+
+  build-stub:
+    name: Build Stub
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: stub-rs -> target
+          cache-on-failure: true
+          shared-key: stub-ds-v2
+      - name: Build stub exe
+        working-directory: stub-rs
+        run: cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stub-exe
+          path: stub-rs/target/release/Ramz-Launcher.exe
+          retention-days: 1
+
+  release:
+    name: Publish Release
+    needs: [build-main, build-stub]
+    if: always() && needs.build-main.result == 'success' && needs.build-stub.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: launcher-exe
+          path: dist/launcher
+      - uses: actions/download-artifact@v4
+        with:
+          name: stub-exe
+          path: dist/stub
+      - name: List artifacts
+        run: ls -la dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: "Ramz Launcher ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/stub/Ramz-Launcher.exe
+            dist/launcher/ramz-launcher.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

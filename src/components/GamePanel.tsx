@@ -1,0 +1,410 @@
+import { useState, useEffect, useRef, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { motion, AnimatePresence } from "framer-motion";
+import type { Page } from "./Sidebar";
+import type { CustomModpack } from "../App";
+
+interface Account {
+  username: string;
+  uuid: string;
+  access_token: string;
+  account_type: string;
+}
+
+interface LaunchProgress {
+  stage: string;
+  progress: number;
+  total: number;
+  message: string;
+}
+
+interface GamePanelProps {
+  page: Page;
+  account: Account | null;
+  javaPath: string;
+  maxMemory: number;
+  jvmArgs?: string;
+  gpuMode?: string;
+  customModpacks?: CustomModpack[];
+  allowMultipleInstances?: boolean;
+  closeLauncherOnGameStart?: boolean;
+  reopenLauncherAfterGameClose?: boolean;
+}
+
+interface ModpackConfig {
+  title: string;
+  description: string;
+  githubRepo: string;
+  modpackName: string;
+  defaultVersion: string;
+  mcVersion: string;
+  locked?: boolean;
+  bg: string[];
+}
+
+const MODPACK_CONFIGS: Record<string, ModpackConfig> = {
+  ramz: {
+    title: "Зомби апокалипсис",
+    description: "Зомби апокалипсис — режим выживания в зараженном мире. Сражайтесь с ордами зомби, ищите припасы и выживайте вместе с друзьями.",
+    githubRepo: "Sadoul/ramz_modpack",
+    modpackName: "ramz",
+    defaultVersion: "fabric-1.20.1",
+    mcVersion: "1.20.1",
+    bg: ["/backgrounds/ramz.png"],
+  },
+};
+
+export default function GamePanel({
+  page,
+  account,
+  javaPath,
+  maxMemory,
+  jvmArgs = "",
+  gpuMode = "auto",
+  customModpacks = [],
+  allowMultipleInstances = false,
+  closeLauncherOnGameStart = true,
+  reopenLauncherAfterGameClose = true,
+}: GamePanelProps) {
+  const [launching, setLaunching] = useState(false);
+  const [gameRunning, setGameRunning] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [progress, setProgress] = useState<LaunchProgress | null>(null);
+  const [status, setStatus] = useState<"ready" | "downloading" | "update">("ready");
+  const [downloadProgress, setDownloadProgress] = useState<{ downloaded: number; total: number; message: string } | null>(null);
+  const [error, setError] = useState("");
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const isActiveRef = useRef(false);
+  useEffect(() => {
+    isActiveRef.current = launching || status === "downloading";
+  }, [launching, status]);
+  const customPackName = page.startsWith("custom:") ? page.slice("custom:".length) : null;
+  const customPack = customPackName ? customModpacks.find(pack => pack.name === customPackName) : null;
+  const config = customPack ? {
+    title: customPack.name,
+    description: `${customPack.loader.toUpperCase()} · Minecraft ${customPack.mc_version}${customPack.loader_version ? ` · ${customPack.loader_version}` : ""}`,
+    githubRepo: "",
+    modpackName: customPack.name,
+    defaultVersion: customPack.loader === "vanilla" ? customPack.mc_version : `${customPack.loader}-${customPack.mc_version}`,
+    mcVersion: customPack.mc_version,
+    bg: ["/backgrounds/default_background.png"],
+  } : (MODPACK_CONFIGS[page] || MODPACK_CONFIGS.ramz);
+
+
+  const bgImage = useMemo(() => {
+    if (!config.bg || config.bg.length === 0) return null;
+    return config.bg[0];
+  }, [page]);
+
+
+  useEffect(() => {
+    let cancelled = false;
+    const wasDownloading = { current: status === "downloading" };
+
+    const poll = async () => {
+      if (document.hidden && !isActiveRef.current) return;
+
+      try {
+        const lp = await invoke<LaunchProgress | null>("get_launch_progress");
+        if (!cancelled) {
+          if (lp && lp.stage !== "done") {
+            setLaunching(true);
+            setProgress(lp);
+          } else if (lp && lp.stage === "done") {
+            setProgress(lp);
+            window.setTimeout(() => {
+              if (!cancelled) { setLaunching(false); setProgress(null); }
+            }, 1500);
+          }
+        }
+      } catch (e) {
+        // error ignored
+      }
+
+
+      try {
+        const dp = await invoke<{ downloaded: number; total: number; message: string } | null>("get_download_progress");
+        if (!cancelled) {
+          if (dp) {
+            const finished = dp.message.includes("установлена");
+            const active = !finished && (dp.total === 0 || dp.downloaded < dp.total);
+            if (active) {
+              setStatus("downloading");
+              setDownloadProgress(dp);
+              wasDownloading.current = true;
+            } else if (finished && wasDownloading.current) {
+              wasDownloading.current = false;
+              setDownloadProgress(null);
+              setStatus("ready");
+              if (!config.locked) checkModpackUpdate();
+            }
+          }
+        }
+      } catch (e) {
+        // error ignored
+      }
+
+
+      try {
+        if (!cancelled) setGameRunning(await invoke<boolean>("is_game_running"));
+      } catch (e) {
+        // error ignored
+      }
+    };
+
+    if (!config.locked) checkModpackUpdate();
+    poll();
+    const timer = window.setInterval(poll, 700);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [page]);
+
+  const checkModpackUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      const update = await invoke<any>("check_modpack_update", {
+        modpackName: config.modpackName,
+        githubRepo: config.githubRepo,
+      });
+      setStatus(update ? "update" : "ready");
+    } catch {
+      setStatus("ready");
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const handlePlay = async () => {
+    if (!account) {
+      setError("Войдите в аккаунт перед запуском");
+      return;
+    }
+
+    if (!allowMultipleInstances && gameRunning) {
+      setError("Minecraft уже запущен. Включите «Разрешить твинки» в настройках, если хотите открыть ещё один клиент.");
+      return;
+    }
+
+    setLaunching(true);
+    setError("");
+    setProgress(null);
+
+    try {
+      const gameDir = customPack?.game_dir || await invoke<string>("get_builtin_modpack_dir", { modpackName: config.modpackName });
+
+      const savedBuiltinMemoryRaw = !customPack ? localStorage.getItem(`ramz_modpack_memory_${config.modpackName}`) : null;
+      const savedBuiltinMemory = savedBuiltinMemoryRaw !== null ? Number(savedBuiltinMemoryRaw) : NaN;
+      const effectiveMemory = customPack?.max_memory ?? ((!Number.isNaN(savedBuiltinMemory) && savedBuiltinMemory > 0) ? savedBuiltinMemory : maxMemory);
+
+      await invoke("launch_game", {
+        username: account.username,
+        uuid: account.uuid,
+        accessToken: account.access_token,
+        version: config.defaultVersion,
+        javaPath,
+        maxMemory: effectiveMemory,
+        gameDir,
+        jvmArgs: customPack?.jvm_args ?? jvmArgs,
+        gpuMode,
+        allowMultipleInstances,
+        closeLauncherOnGameStart,
+        reopenLauncherAfterGameClose,
+      });
+    } catch (err) {
+      setError(String(err));
+      setLaunching(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setCancelling(true);
+    try {
+      await invoke("cancel_launch");
+      await invoke("cancel_download");
+    } catch (e) {
+        // error ignored
+      }
+    setLaunching(false);
+    setStatus("ready");
+    setProgress(null);
+    setDownloadProgress(null);
+    setCancelling(false);
+  };
+
+  const copyError = async () => {
+    if (!error) return;
+    try {
+      await navigator.clipboard.writeText(error);
+      setError(`${error}\n\n[Скопировано в буфер обмена]`);
+    } catch {
+      setError(`${error}\n\n[Не удалось скопировать автоматически — выделите текст вручную]`);
+    }
+  };
+
+  const progressPercent = progress && progress.total > 0
+    ? Math.round((progress.progress / progress.total) * 100)
+    : 0;
+
+  return (
+    <motion.div
+      className={`game-panel ${bgImage ? "has-bg" : ""}`}
+      key={page}
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -15 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      
+      {bgImage && (
+        <div
+          className="panel-bg"
+          style={{ backgroundImage: `url(${bgImage})` }}
+        />
+      )}
+
+      
+      {config.locked && (
+        <div className="locked-overlay">
+          <div className="locked-overlay-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" opacity="0.4"/>
+              <path d="M12 7v5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <circle cx="12" cy="15.5" r="1" fill="currentColor"/>
+            </svg>
+          </div>
+          <div className="locked-overlay-title">В разработке</div>
+          <div className="locked-overlay-sub">Скоро будет доступно</div>
+        </div>
+      )}
+
+      <div className="game-panel-header">
+        <motion.h2
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+        >
+          {config.title}
+        </motion.h2>
+        <motion.div
+          className="description-glass-card"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18, duration: 0.3 }}
+        >
+          <p className="description">{config.description}</p>
+        </motion.div>
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      {(launching || status === "downloading" || error || (!javaPath && !config.locked)) && (
+        <div className="game-play-area">
+          <AnimatePresence mode="wait">
+            {launching || status === "downloading" ? (
+              <motion.div
+                key="launching"
+                className="progress-container"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.25 }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}
+              >
+                {(progress || downloadProgress) && (
+                  <>
+                    <div className="progress-bar-wrapper" style={{ width: "100%" }}>
+                      <motion.div
+                        className="progress-bar-fill"
+                        initial={{ width: "0%" }}
+                        animate={{ width: `${progress ? progressPercent : (downloadProgress && downloadProgress.total > 0 ? Math.round((downloadProgress.downloaded / downloadProgress.total) * 100) : 0)}%` }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                    <div className="progress-text">
+                      {progress ? progress.message : downloadProgress?.message}
+                    </div>
+                  </>
+                )}
+                <motion.button
+                  className="cancel-button"
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  {cancelling ? "Отмена..." : "Отменить"}
+                </motion.button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="play"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={{ duration: 0.3 }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, width: "100%" }}
+              >
+                {error && (
+                  <motion.div
+                    className="launch-error-card"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                  >
+                    <pre className="launch-error-text">{error}</pre>
+                    <motion.button
+                      className="copy-error-button"
+                      onClick={copyError}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      Скопировать ошибку
+                    </motion.button>
+                  </motion.div>
+                )}
+
+                {!javaPath && !config.locked && (
+                  <div className="java-warning">
+                    Java не найдена. Настройте Java в настройках.
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      <div className="game-panel-footer">
+        <div className="footer-glass-card">
+          <span className="footer-modpack-name">{config.title}</span>
+          <span className="footer-mc-version">Minecraft {config.mcVersion}{config.defaultVersion.startsWith("fabric") ? " · Fabric" : config.defaultVersion.startsWith("forge") ? " · Forge" : ""}</span>
+        </div>
+        <div className="footer-actions">
+          <span className={`status-badge ${status === "ready" ? "ready" : status === "update" ? "update" : "downloading"}`}>
+            <span className="status-dot" />
+            {status === "ready" ? "Готово" : status === "update" ? "Обновление" : "Загрузка"}
+          </span>
+          {!config.locked && (
+            <motion.button
+              className="play-button-hero footer-play-button"
+              onClick={handlePlay}
+              disabled={launching || status === "downloading" || !javaPath || checkingUpdate || config.locked || (!allowMultipleInstances && gameRunning)}
+              whileHover={{ scale: 1.03, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <span className="play-button-icon">▶</span>
+              <span>
+                {checkingUpdate ? "Проверка..."
+                  : status === "downloading" ? "Загрузка..."
+                  : (!allowMultipleInstances && gameRunning) ? "Minecraft уже открыт"
+                  : "Играть"}
+              </span>
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
