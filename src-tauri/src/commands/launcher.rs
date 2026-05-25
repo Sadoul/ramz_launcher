@@ -1760,10 +1760,14 @@ pub async fn launch_game(
                 log(&format!("[launch] Starting external game watcher for PID {}", game_pid));
                 #[cfg(windows)]
                 {
+                    // Reopen the launcher only if the game exits cleanly
+                    // (exit code 0). A non-zero exit means a crash, and we
+                    // don't want to open a new launcher when the user might
+                    // already have one open in another window.
                     let script = format!(
-                        "Wait-Process -Id {}; Start-Process -FilePath '{}'",
-                        game_pid,
-                        exe_path.to_string_lossy().replace('\'', "''")
+                        "$p = Get-Process -Id {pid} -ErrorAction SilentlyContinue; if ($p) {{ $p.WaitForExit(); $code = $p.ExitCode }} else {{ $code = 0 }}; if ($code -eq 0) {{ Start-Process -FilePath '{exe}' }}",
+                        pid = game_pid,
+                        exe = exe_path.to_string_lossy().replace('\'', "''")
                     );
                     let mut watcher = Command::new("powershell.exe");
                     watcher
@@ -1780,8 +1784,12 @@ pub async fn launch_game(
                 #[cfg(not(windows))]
                 {
                     std::thread::spawn(move || {
-                        let _ = child.wait();
-                        let _ = Command::new(exe_path).spawn();
+                        let status = child.wait();
+                        if let Ok(s) = status {
+                            if s.success() {
+                                let _ = Command::new(exe_path).spawn();
+                            }
+                        }
                     });
                     std::thread::sleep(Duration::from_millis(300));
                 }

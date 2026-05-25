@@ -1,6 +1,6 @@
 [package]
 name = "ramz-stub"
-version = "2.70.48"
+version = "2.70.49"
 edition = "2021"
 description = "Ramz Launcher Stub"
 
