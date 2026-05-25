@@ -685,7 +685,7 @@ async fn run_modded_installer(
     let profiles_path = mc_dir.join("launcher_profiles.json");
     if !profiles_path.exists() {
         log(&format!("[{}] Creating launcher_profiles.json required by Forge installer", loader));
-        let profiles_json = "{\"profiles\":{},\"selectedProfile\":\"\",\"clientToken\":\"rpwlauncher\",\"authenticationDatabase\":{}}";
+        let profiles_json = "{\"profiles\":{},\"selectedProfile\":\"\",\"clientToken\":\"ramzlauncher\",\"authenticationDatabase\":{}}";
         fs::write(&profiles_path, profiles_json)
             .map_err(|e| format!("[{}] Cannot create launcher_profiles.json: {}", loader, e))?;
     }

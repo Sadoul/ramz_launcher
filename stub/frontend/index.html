@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>RPWorld Launcher</title>
+  <title>Ramz Launcher</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -253,7 +253,7 @@
 <div class="window">
   <!-- Titlebar -->
   <div class="titlebar" data-tauri-drag-region>
-    <span class="titlebar-title">RPWorld</span>
+    <span class="titlebar-title">Ramz</span>
     <div class="titlebar-btns">
       <button class="tb-btn" id="minBtn" title="Свернуть">─</button>
       <button class="tb-btn close" id="closeBtn" title="Закрыть">✕</button>
@@ -272,10 +272,10 @@
     <!-- Logo (visible by default) -->
     <div class="logo" id="logoWrap">
       <div class="logo-spinner" id="spinner"></div>
-      <div class="logo-circle">RPW</div>
+      <div class="logo-circle">Ramz</div>
     </div>
 
-    <div class="heading">RPWorld Launcher</div>
+    <div class="heading">Ramz Launcher</div>
     <div class="subtitle" id="subtitle">Подготовка...</div>
 
     <div class="progress-track">
@@ -355,13 +355,13 @@
         const installed = await invoke('check_installed');
 
         if (installed) {
-          setSubtitle('Запуск RPWorld Launcher');
+          setSubtitle('Запуск Ramz Launcher');
           setProgress(100);
           setStatus('Открываем...', 'ok');
           showDone();
           await invoke('launch_launcher');
         } else {
-          setSubtitle('Установка RPWorld Launcher');
+          setSubtitle('Установка Ramz Launcher');
           setStatus('Подключение к серверу...');
           setProgress(8);
 

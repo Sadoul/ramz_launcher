@@ -90,7 +90,7 @@ export default function ModpackSettingsPanel({ page, customModpacks, onBack, onC
 
   const save = async () => {
     if (!isCustom) {
-      localStorage.setItem(`rpw_modpack_memory_${page}`, String(memory));
+      localStorage.setItem(`ramz_modpack_memory_${page}`, String(memory));
       setMessage("ОЗУ сборки сохранено локально");
       return;
     }

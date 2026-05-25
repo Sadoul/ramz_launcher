@@ -121,10 +121,10 @@ public class CompoundTag implements Tag {
    private final Map<String, Tag> tags;
 
    /**
-    * RPWorldEngine P-NBT: NBT tag-key intern pool.
+    * RamzEngine P-NBT: NBT tag-key intern pool.
     *
     * Every CompoundTag read from disk or network creates fresh String objects for
-    * its keys via DataInput.readUTF(). On a typical RPWorld save with hundreds of
+    * its keys via DataInput.readUTF(). On a typical Ramz save with hundreds of
     * thousands of entities and block entities this means millions of duplicated
     * String references for ~50 well-known keys ("id", "x", "y", "z", "Damage",
     * "Count", "tag", "Pos", "Motion", "UUID", ...).
@@ -140,7 +140,7 @@ public class CompoundTag implements Tag {
     *   - Our pool is a ConcurrentHashMap, ~10ns per hit, no JVM-wide contention.
     *   - We can size and observe it.
     *
-    * Estimated heap savings on a loaded RPWorld save: 5-15 MB (very dependent on
+    * Estimated heap savings on a loaded Ramz save: 5-15 MB (very dependent on
     * world entity count, scales linearly with entities/block-entities loaded).
     */
    private static final java.util.concurrent.ConcurrentHashMap<String, String> INTERNED_KEYS = new java.util.concurrent.ConcurrentHashMap<>(256);

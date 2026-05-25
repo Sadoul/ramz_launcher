@@ -4,23 +4,23 @@ use std::io::Write;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
 
-const GITHUB_REPO: &str = "Sadoul/rpwlauncher";
+const GITHUB_REPO: &str = "Sadoul/ramz_launcher";
 const INSTALLER_ASSET_SUFFIX: &str = "_x64-setup.exe";
 
 /// Possible binary names Tauri NSIS may install under.
-/// Tauri uses the Cargo package binary name ("rpw-launcher") as the .exe name inside the bundle,
+/// Tauri uses the Cargo package binary name ("ramz-launcher") as the .exe name inside the bundle,
 /// but we also check the productName variant just in case.
-const EXE_NAMES: &[&str] = &["rpw-launcher.exe", "RPWorld Launcher.exe", "RPWorld-Launcher.exe"];
+const EXE_NAMES: &[&str] = &["ramz-launcher.exe", "Ramz Launcher.exe", "Ramz-Launcher.exe"];
 
 /// Returns the install location from the Windows registry if available.
 #[cfg(windows)]
 fn install_location_from_registry() -> Option<PathBuf> {
     // Tauri v2 NSIS currentUser mode registers under:
     //   HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\{identifier}_is1
-    // identifier = "com.rpworld.launcher"
+    // identifier = "com.ramz.launcher"
     let keys = [
-        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\com.rpworld.launcher_is1",
-        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\RPWorld Launcher_is1",
+        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\com.ramz.launcher_is1",
+        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Ramz Launcher_is1",
     ];
 
     use winreg::enums::*;
@@ -75,9 +75,9 @@ fn get_launcher_exe() -> Option<PathBuf> {
     let local = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("C:\\Users\\Default\\AppData\\Local"));
 
     for name in EXE_NAMES {
-        candidates.push(local.join("Programs").join("RPWorld Launcher").join(name));
-        candidates.push(local.join("Programs").join("com.rpworld.launcher").join(name));
-        candidates.push(local.join("RPWorld Launcher").join(name));
+        candidates.push(local.join("Programs").join("Ramz Launcher").join(name));
+        candidates.push(local.join("Programs").join("com.ramz.launcher").join(name));
+        candidates.push(local.join("Ramz Launcher").join(name));
     }
 
     // 3. Same directory as the stub itself
@@ -109,7 +109,7 @@ async fn launch_launcher(app: AppHandle) -> Result<(), String> {
             .map(|d| d.display().to_string())
             .unwrap_or_else(|| "%LOCALAPPDATA%".to_string());
         format!(
-            "RPWorld Launcher не ��айден. Ожидаемый путь: {}\\Programs\\RPWorld Launcher\\rpw-launcher.exe",
+            "Ramz Launcher не ��айден. Ожидаемый путь: {}\\Programs\\Ramz Launcher\\ramz-launcher.exe",
             local
         )
     })?;
@@ -156,7 +156,7 @@ async fn download_and_install(app: AppHandle) -> Result<(), String> {
     emit_progress(&app, 10, "Получение информации о версии...", None, None);
 
     let client = reqwest::Client::builder()
-        .user_agent("RPWorld-Stub/1.0")
+        .user_agent("Ramz-Stub/1.0")
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -229,7 +229,7 @@ async fn download_and_install(app: AppHandle) -> Result<(), String> {
         emit_progress(
             &app,
             percent.min(85),
-            "Загрузка RPWorld Launcher...",
+            "Загрузка Ramz Launcher...",
             dl_str,
             speed,
         );

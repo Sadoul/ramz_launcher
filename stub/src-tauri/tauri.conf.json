@@ -1,15 +1,15 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
-  "productName": "RPWorld Launcher",
+  "productName": "Ramz Launcher",
   "version": "1.0.7",
-  "identifier": "com.rpworld.stub",
+  "identifier": "com.ramz.stub",
   "build": {
     "frontendDist": "../frontend"
   },
   "app": {
     "windows": [
       {
-        "title": "RPWorld Launcher",
+        "title": "Ramz Launcher",
         "width": 520,
         "height": 420,
         "center": true,

@@ -195,7 +195,7 @@ export default function GamePanel({
     try {
       const gameDir = customPack?.game_dir || await invoke<string>("get_builtin_modpack_dir", { modpackName: config.modpackName });
 
-      const savedBuiltinMemoryRaw = !customPack ? localStorage.getItem(`rpw_modpack_memory_${config.modpackName}`) : null;
+      const savedBuiltinMemoryRaw = !customPack ? localStorage.getItem(`ramz_modpack_memory_${config.modpackName}`) : null;
       const savedBuiltinMemory = savedBuiltinMemoryRaw !== null ? Number(savedBuiltinMemoryRaw) : NaN;
       const effectiveMemory = customPack?.max_memory ?? ((!Number.isNaN(savedBuiltinMemory) && savedBuiltinMemory > 0) ? savedBuiltinMemory : maxMemory);
 

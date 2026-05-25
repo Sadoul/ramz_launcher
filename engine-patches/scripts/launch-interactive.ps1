@@ -1,7 +1,7 @@
-﻿# Launch the patched Forge client directly, bypassing RPWorld's launcher.
+﻿# Launch the patched Forge client directly, bypassing Ramz's launcher.
 #
 # Builds the JVM command from versions/1.20.1-forge-47.4.20/<id>.json + parent
-# 1.20.1.json, mirroring exactly what RPWLauncher would do, then runs it
+# 1.20.1.json, mirroring exactly what RamzLauncher would do, then runs it
 # headless with stdout/stderr captured to logs/.
 #
 # Stops the JVM after a configurable timeout — long enough for full ModLauncher
@@ -21,22 +21,22 @@ if ($Vanilla) {
 }
 
 # ---- paths ----
-$gameDir         = $RPWORLD
-$verDir          = Join-Path $RPWORLD_VER '1.20.1-forge-47.4.20'
+$gameDir         = $RAMZ
+$verDir          = Join-Path $RAMZ_VER '1.20.1-forge-47.4.20'
 $forgeJsonPath   = Join-Path $verDir '1.20.1-forge-47.4.20.json'
-$vanillaJsonPath = Join-Path $RPWORLD_VER '1.20.1\1.20.1.json'
+$vanillaJsonPath = Join-Path $RAMZ_VER '1.20.1\1.20.1.json'
 Assert-Path $forgeJsonPath  'forge profile JSON'
 Assert-Path $vanillaJsonPath 'vanilla profile JSON'
 
 $forgeJson   = Get-Content $forgeJsonPath -Raw | ConvertFrom-Json
 $vanillaJson = Get-Content $vanillaJsonPath -Raw | ConvertFrom-Json
 
-$libDir   = Join-Path $RPWORLD 'libraries'
+$libDir   = Join-Path $RAMZ 'libraries'
 $natDir   = Join-Path $verDir  '1.20.1-forge-47.4.20-natives'
 $assetIdx = $vanillaJson.assetIndex.id
-$assetDir = Join-Path $RPWORLD 'assets'
+$assetDir = Join-Path $RAMZ 'assets'
 $mainCls  = $forgeJson.mainClass
-$logsDir  = Join-Path $RPWE_ROOT 'logs'
+$logsDir  = Join-Path $RAMZE_ROOT 'logs'
 New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
 
 # ---- ensure natives directory is populated ----
@@ -113,7 +113,7 @@ foreach ($lib in $forgeJson.libraries) {
 }
 # IMPORTANT: do NOT add the vanilla profile jar (1.20.1.jar) to legacyClassPath.
 # Forge resolves the Minecraft module from libraries/net/minecraft/client/.../client-*-srg.jar
-# (which is what RPWLauncher patches via deploy.ps1). Adding 1.20.1.jar duplicates
+# (which is what RamzLauncher patches via deploy.ps1). Adding 1.20.1.jar duplicates
 # every com.mojang.* / net.minecraft.* package and triggers ResolutionException:
 #   "Modules _1._20._1 and minecraft export package com.mojang.blaze3d.systems"
 
@@ -132,7 +132,7 @@ $placeholders = @{
     '${classpath_separator}' = ';'
     '${version_name}'        = '1.20.1-forge-47.4.20'
     '${natives_directory}'   = $natDir
-    '${launcher_name}'       = 'rpworld-engine-launch'
+    '${launcher_name}'       = 'ramz-engine-launch'
     '${launcher_version}'    = '1.0'
     '${classpath}'           = ($cpEntries -join ';')
 }
@@ -148,12 +148,12 @@ foreach ($a in $forgeJson.arguments.jvm) {
 }
 $jvmArgs += "-DlegacyClassPath.file=$legacyCpFile"
 $jvmArgs += "-Djava.library.path=$natDir"
-$jvmArgs += '-Dminecraft.launcher.brand=rpworld-engine'
+$jvmArgs += '-Dminecraft.launcher.brand=ramz-engine'
 $jvmArgs += '-Dminecraft.launcher.version=1.0'
 $jvmArgs += '-Dlog4j2.formatMsgNoLookups=true'
 
 # ----------------------------------------------------------------------
-# RPWorldEngine JVM tuning (P-JVM): Aikar-style flags + heap sizing.
+# RamzEngine JVM tuning (P-JVM): Aikar-style flags + heap sizing.
 #
 # Why each flag matters here:
 #   -Xms == -Xmx (8G)
@@ -237,7 +237,7 @@ $jvmArgs += '-XX:StringTableSize=1000003'
 
 # ---- assemble game args ----
 $gamePlaceholders = @{
-    '${auth_player_name}'  = 'RpwePatchTest'
+    '${auth_player_name}'  = 'RamzePatchTest'
     '${version_name}'      = '1.20.1-forge-47.4.20'
     '${game_directory}'    = $gameDir
     '${assets_root}'       = $assetDir
@@ -329,7 +329,7 @@ if ($crashed -or $err) {
 }
 
 # Look for our patch markers in stdout
-$ourLines = $out | Where-Object { $_ -match 'PalettedContainer|LevelChunkSection|RPWorldEngine' } | Select-Object -First 20
+$ourLines = $out | Where-Object { $_ -match 'PalettedContainer|LevelChunkSection|RamzEngine' } | Select-Object -First 20
 if ($ourLines) {
     Write-Host "`n--- patch-related lines in stdout ---" -ForegroundColor Cyan
     $ourLines | ForEach-Object { Write-Host "  $_" }

@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-const GITHUB_REPO: &str = "Sadoul/rpwlauncher";
-const APP_NAME: &str = "RPWorld Launcher";
+const GITHUB_REPO: &str = "Sadoul/ramz_launcher";
+const APP_NAME: &str = "Ramz Launcher";
 
 fn get_install_path() -> PathBuf {
     // Tauri NSIS currentUser installs to %LOCALAPPDATA%\Programs\<ProductName>\<ProductName>.exe
@@ -26,7 +26,7 @@ fn show_error(msg: &str) {
     // Use Windows MessageBox via cmd
     let _ = Command::new("cmd")
         .args(["/c", &format!(
-            "mshta \"javascript:var sh=new ActiveXObject('WScript.Shell');sh.Popup('{}',0,'RPWorld Launcher',16);close()\"",
+            "mshta \"javascript:var sh=new ActiveXObject('WScript.Shell');sh.Popup('{}',0,'Ramz Launcher',16);close()\"",
             msg
         )])
         .spawn();
@@ -34,7 +34,7 @@ fn show_error(msg: &str) {
 
 fn download_and_install() -> bool {
     let temp_dir = std::env::temp_dir();
-    let installer_path = temp_dir.join("RPWorld-Launcher-Setup.exe");
+    let installer_path = temp_dir.join("Ramz-Launcher-Setup.exe");
 
     // Step 1: Get latest release info from GitHub API using curl.exe (built into Win10+)
     let api_url = format!(
@@ -42,13 +42,13 @@ fn download_and_install() -> bool {
         GITHUB_REPO
     );
 
-    let json_path = temp_dir.join("rpw_release.json");
+    let json_path = temp_dir.join("ramz_release.json");
 
     let curl_result = Command::new("curl.exe")
         .args([
             "-L",
             "-s",
-            "-A", "RPWStub/1.0",
+            "-A", "RamzStub/1.0",
             "-o", json_path.to_str().unwrap_or(""),
             &api_url,
         ])
@@ -85,7 +85,7 @@ fn download_and_install() -> bool {
         .args([
             "-L",
             "-s",
-            "-A", "RPWStub/1.0",
+            "-A", "RamzStub/1.0",
             "--progress-bar",
             "-o", installer_path.to_str().unwrap_or(""),
             &download_url,

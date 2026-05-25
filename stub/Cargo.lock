@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "rpw-stub"
+name = "ramz-stub"
 version = "1.0.1"

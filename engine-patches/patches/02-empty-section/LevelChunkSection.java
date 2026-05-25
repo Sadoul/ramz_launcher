@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 
 /**
- * RPWorldEngine P-02 — empty-section singleton (copy-on-write).
+ * RamzEngine P-02 — empty-section singleton (copy-on-write).
  *
  * In a typical loaded world, ~18-22 of every chunk's 24 sections contain only air
  * (high-altitude empty space, deep void, or "filled but uniform stone" pre-CoW).
@@ -34,7 +34,7 @@ import net.minecraft.world.level.material.FluidState;
  *   - Any write or accessor that hands out a mutable reference triggers
  *     copy-on-write into a private container
  *
- * Estimated savings on a loaded RPWorld session:
+ * Estimated savings on a loaded Ramz session:
  *   5_000 chunks * 20 empty sections * ~180 bytes = ~18 MB heap
  *   plus ~5_000 * 20 = 100_000 fewer GC roots / JVM objects
  *

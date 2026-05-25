@@ -13,7 +13,7 @@
 
 . $PSScriptRoot\_paths.ps1
 
-$srgJar = Join-Path $RPWORLD 'libraries\net\minecraft\client\1.20.1-20230612.114412\client-1.20.1-20230612.114412-srg.jar'
+$srgJar = Join-Path $RAMZ 'libraries\net\minecraft\client\1.20.1-20230612.114412\client-1.20.1-20230612.114412-srg.jar'
 Assert-Path $srgJar 'deployed client-srg.jar'
 
 # ASM-style structural checks via javap (ships with JDK 17)
@@ -26,7 +26,7 @@ $classes = @(
     'net/minecraft/world/level/chunk/LevelChunkSection$EmptyHolder'
 )
 
-$tmp = Join-Path $env:TEMP 'rpwe-verify'
+$tmp = Join-Path $env:TEMP 'ramze-verify'
 if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 

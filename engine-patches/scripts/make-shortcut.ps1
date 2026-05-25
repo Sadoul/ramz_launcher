@@ -1,12 +1,12 @@
-# Generate a standalone .bat launcher that runs RPWorld with our patches,
-# bypassing RPWorld-Launcher.exe completely.
+# Generate a standalone .bat launcher that runs Ramz with our patches,
+# bypassing Ramz-Launcher.exe completely.
 #
-# Output: Desktop\RPWorld (engine).bat — double-click to play.
+# Output: Desktop\Ramz (engine).bat — double-click to play.
 
 . $PSScriptRoot\_paths.ps1
 
 $desktop = [Environment]::GetFolderPath('Desktop')
-$bat = Join-Path $desktop 'RPWorld (engine).bat'
+$bat = Join-Path $desktop 'Ramz (engine).bat'
 $ps1 = Join-Path $PSScriptRoot 'launch.ps1'
 
 # Make launch.ps1 keep the window open instead of killing on timeout
@@ -23,9 +23,9 @@ Set-Content $launchInteractive $content -Encoding UTF8
 # .bat just calls PowerShell with bypass to run our script
 $batContent = @"
 @echo off
-title RPWorld (engine patches)
+title Ramz (engine patches)
 echo.
-echo === RPWorld with engine patches ===
+echo === Ramz with engine patches ===
 echo Loading 170 mods, this can take 5-10 minutes on first launch.
 echo Window will close when game exits.
 echo.
@@ -38,4 +38,4 @@ pause
 Set-Content $bat $batContent -Encoding ASCII
 
 Write-Host "shortcut created: $bat" -ForegroundColor Green
-Write-Host "double-click to launch RPWorld with patches." -ForegroundColor Cyan
+Write-Host "double-click to launch Ramz with patches." -ForegroundColor Cyan

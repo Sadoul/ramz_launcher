@@ -33,12 +33,12 @@ import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 
 /**
- * RPWorldEngine P-03 — registry lifecycles dedup.
+ * RamzEngine P-03 — registry lifecycles dedup.
  *
  * Vanilla stores Lifecycle for every registered value via
  * {@code Map<T, Lifecycle> lifecycles = new IdentityHashMap<>()}.
  *
- * In a 170-mod RPWorld instance this map ends up holding ~50_000 entries
+ * In a 170-mod Ramz instance this map ends up holding ~50_000 entries
  * (blocks + items + entities + biomes + features + ...). For 99% of vanilla
  * entries the value is the shared singleton {@code Lifecycle.stable()}, the
  * remaining ~1% are usually Lifecycle.experimental() (also a shared singleton).

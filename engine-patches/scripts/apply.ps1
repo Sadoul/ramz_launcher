@@ -4,18 +4,18 @@
 . $PSScriptRoot\_paths.ps1
 
 Assert-Path $MCP_SRC      'MCP-Reborn src'
-Assert-Path $RPWE_PATCHES 'engine-patches/patches'
+Assert-Path $RAMZE_PATCHES 'engine-patches/patches'
 
-if (-not (Test-Path $RPWE_ORIGINAL)) {
-    New-Item -ItemType Directory -Force -Path $RPWE_ORIGINAL | Out-Null
+if (-not (Test-Path $RAMZE_ORIGINAL)) {
+    New-Item -ItemType Directory -Force -Path $RAMZE_ORIGINAL | Out-Null
 }
 
 $applied = 0
-foreach ($name in $RPWE_FILE_MAP.Keys) {
-    $rel       = $RPWE_FILE_MAP[$name]
+foreach ($name in $RAMZE_FILE_MAP.Keys) {
+    $rel       = $RAMZE_FILE_MAP[$name]
     $vanilla   = Join-Path $MCP_SRC $rel
-    $patchFile = Get-ChildItem -Path $RPWE_PATCHES -Recurse -Filter $name -ErrorAction SilentlyContinue | Select-Object -First 1
-    $snapshot  = Join-Path $RPWE_ORIGINAL $name
+    $patchFile = Get-ChildItem -Path $RAMZE_PATCHES -Recurse -Filter $name -ErrorAction SilentlyContinue | Select-Object -First 1
+    $snapshot  = Join-Path $RAMZE_ORIGINAL $name
 
     if (-not $patchFile) { Write-Warning "patch missing: $name (skipped)"; continue }
     if (-not (Test-Path $vanilla)) { Write-Warning "vanilla missing: $vanilla (skipped)"; continue }

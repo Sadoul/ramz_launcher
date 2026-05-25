@@ -13,7 +13,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * RPWorldEngine P-EXTREME: Aggressive texture + model optimization.
+ * RamzEngine P-EXTREME: Aggressive texture + model optimization.
  *
  * 1. TextureAtlasSprite pre-caching across runs (write compiled shaders/sprites to disk,
  *    read them on next start -> skip ~10-15s of Atlas stitching.
@@ -21,14 +21,14 @@ import net.minecraft.resources.ResourceLocation;
  *    models into a disk cache ($modelCacheFile). On second+ run, just read from disk.
  *    This literally eliminates the ENTIRE bakeModels() cost (30-50s -> 0s).
  *
- * NOTE: this is extreme - it writes files to .rpworld/engine-cache/.
+ * NOTE: this is extreme - it writes files to .ramz/engine-cache/.
  *       If it corrupts, delete the folder and it self-heals.
  */
 
 public class ModelBakeryExtreme {
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("RPWEngine-ModelBakeryExtreme");
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("RamzEngine-ModelBakeryExtreme");
 
-    private static final String CACHE_DIR = System.getProperty("user.home") + "/.rpworld/engine-cache/models/";
+    private static final String CACHE_DIR = System.getProperty("user.home") + "/.ramz/engine-cache/models/";
     private static final java.io.File cacheDir = new java.io.File(CACHE_DIR);
 
     // Pre-baked model cache: location -> baked model bytes (serialized via vanilla's codec)

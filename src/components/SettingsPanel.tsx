@@ -76,7 +76,7 @@ export default function SettingsPanel({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [toast, setToast] = useState("");
   const [loggingEnabled, setLoggingEnabled] = useState(() => {
-    return localStorage.getItem("rpw_logging") !== "false";
+    return localStorage.getItem("ramz_logging") !== "false";
   });
   const [logContent, setLogContent] = useState("");
   const [showLog, setShowLog] = useState(false);
@@ -110,7 +110,7 @@ export default function SettingsPanel({
 
   const handleToggleLogging = async (enabled: boolean) => {
     setLoggingEnabled(enabled);
-    localStorage.setItem("rpw_logging", enabled ? "true" : "false");
+    localStorage.setItem("ramz_logging", enabled ? "true" : "false");
     try { await invoke("set_logging_enabled", { enabled }); } catch (e) {
         // error ignored
       }

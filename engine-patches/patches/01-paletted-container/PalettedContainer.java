@@ -23,7 +23,7 @@ import net.minecraft.util.SimpleBitStorage;
 import net.minecraft.util.ZeroBitStorage;
 
 /**
- * RPWorldEngine P-01 — slim PalettedContainer.
+ * RamzEngine P-01 — slim PalettedContainer.
  *
  * Vanilla allocates per-container:
  *   - dummyPaletteResize lambda           (~16 bytes)

@@ -1,6 +1,6 @@
 # Deploy: inject reobfuscated patched classes directly into Forge's client-srg.jar.
 #
-# Forge 1.20.1 classpath layout (discovered from rpworld libraries):
+# Forge 1.20.1 classpath layout (discovered from ramz libraries):
 #   libraries/net/minecraft/client/1.20.1-20230612.114412/
 #     client-...-srg.jar     <- vanilla MC classes already SRG-renamed (m_NNN_, f_NNN_)
 #     client-...-slim.jar    <- vanilla MC classes still in obf
@@ -13,7 +13,7 @@
 # continue to operate on top because the SRG signatures are unchanged.
 #
 # Safety:
-#   - One-time backup: client-...-srg.jar.rpwe-backup
+#   - One-time backup: client-...-srg.jar.ramze-backup
 #   - Idempotent: each run resets to backup then re-overlays freshest reobf
 #   - restore.ps1 -RestoreJar reverts everything
 #
@@ -22,11 +22,11 @@
 
 . $PSScriptRoot\_paths.ps1
 
-$mcLibDir = Join-Path $RPWORLD 'libraries\net\minecraft\client\1.20.1-20230612.114412'
+$mcLibDir = Join-Path $RAMZ 'libraries\net\minecraft\client\1.20.1-20230612.114412'
 Assert-Path $mcLibDir 'minecraft client lib dir'
 
 $srgJar    = Join-Path $mcLibDir 'client-1.20.1-20230612.114412-srg.jar'
-$backupJar = "$srgJar.rpwe-backup"
+$backupJar = "$srgJar.ramze-backup"
 $reobfJar  = Join-Path $MCP_REBORN 'build\reobfJar\output.jar'
 
 Assert-Path $srgJar   'forge client-srg.jar'

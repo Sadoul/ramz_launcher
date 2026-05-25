@@ -1,15 +1,15 @@
 [package]
-name = "rpw-stub"
+name = "ramz-stub"
 version = "1.0.7"
 edition = "2021"
-description = "RPWorld Launcher Installer"
+description = "Ramz Launcher Installer"
 
 [[bin]]
-name = "rpw-stub"
+name = "ramz-stub"
 path = "src/main.rs"
 
 [lib]
-name = "rpw_stub_lib"
+name = "ramz_stub_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
