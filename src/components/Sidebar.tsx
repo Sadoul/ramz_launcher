@@ -271,7 +271,7 @@ export default function Sidebar({ currentPage, onPageChange, account, onLogout, 
     <aside className="sidebar">
       
       <div className="sidebar-logo">
-        <img src="/icons/launcher.jpg" alt="Ramz" className="sidebar-logo-img" draggable={false} />
+        <img src="/icons/logo.png" alt="Ramz" className="sidebar-logo-img" draggable={false} />
         <div className="sidebar-logo-text">
           <div className="sidebar-logo-name">Ramz</div>
           <div className="sidebar-logo-sub">Launcher</div>

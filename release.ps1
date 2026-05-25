@@ -35,8 +35,8 @@ Write-Host "  Ramz Launcher - Release $TAG" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "[1/4] Генерация иконок из images/icons/launcher_square.png..." -ForegroundColor Green
-npx @tauri-apps/cli icon images/icons/launcher_square.png
+Write-Host "[1/4] Генерация иконок из images/icons/logo_square.png..." -ForegroundColor Green
+npx @tauri-apps/cli icon images/icons/logo_square.png
 if ($LASTEXITCODE -ne 0) { throw "Ошибка генерации иконок" }
 
 Write-Host ""
@@ -69,7 +69,7 @@ Write-Host "[4/4] Публикация релиза $TAG на GitHub..." -Foregr
 $staged = git status --porcelain
 if ($staged) {
     git add -A
-    git commit -m "Коммит 3"
+    git commit -m "Коммит 4"
 }
 
 git tag $TAG
