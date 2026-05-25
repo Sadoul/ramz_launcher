@@ -269,57 +269,107 @@ pub async fn update_launcher(app: tauri::AppHandle) -> Result<String, String> {
     update_log(&format!("[updater] Starting in-app update {} -> {}", info.current_version, info.latest_version));
     emit("downloading", 0, info.file_size, 0, "Начало скачивания...");
 
+    // Generous timeouts: GitHub release downloads can stall on slow links,
+    // and we don't want a transient blip to kill a 10+ MB installer download.
     let client = reqwest::Client::builder()
         .user_agent("RamzLauncher/1.0")
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .timeout(std::time::Duration::from_secs(15 * 60))
         .build()
         .map_err(|e| e.to_string())?;
 
-    let response = client
-        .get(&info.installer_url)
-        .send()
-        .await
-        .map_err(|e| format!("Ошибка скачивания: {}", e))?;
-
-    if !response.status().is_success() {
-        return Err(format!("Ошибка скачивания обновления: HTTP {}", response.status()));
-    }
-
-    let total = response.content_length().unwrap_or(info.file_size);
     let temp_dir = std::env::temp_dir();
     let download_path = temp_dir.join(format!("ramz-setup-{}.exe", info.latest_version));
     update_log(&format!("[updater] Download target: {}", download_path.display()));
 
-    use futures_util::StreamExt;
-    let mut stream = response.bytes_stream();
-    let mut downloaded: u64 = 0;
-    let mut file = fs::File::create(&download_path).map_err(|e| e.to_string())?;
-    let start_time = std::time::Instant::now();
+    // Retry loop: GitHub download can disconnect mid-stream; on flaky links we
+    // try up to 3 times before giving up. Each attempt restarts from scratch.
+    let mut last_err = String::new();
+    let mut attempt = 0u32;
+    let max_attempts = 3u32;
+    let mut total: u64 = info.file_size;
+    loop {
+        attempt += 1;
+        update_log(&format!("[updater] Download attempt {}/{}", attempt, max_attempts));
 
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| e.to_string())?;
-        file.write_all(&chunk).map_err(|e| e.to_string())?;
-        downloaded += chunk.len() as u64;
-
-        let elapsed = start_time.elapsed().as_secs_f64();
-        let speed_kb = if elapsed > 0.1 {
-            (downloaded as f64 / elapsed / 1024.0) as u64
-        } else {
-            0
+        let response = match client.get(&info.installer_url).send().await {
+            Ok(r) => r,
+            Err(e) => {
+                last_err = format!("Ошибка скачивания (попытка {}/{}): {}", attempt, max_attempts, e);
+                update_log(&last_err);
+                if attempt >= max_attempts {
+                    return Err(last_err);
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                continue;
+            }
         };
 
-        let mb_done = downloaded as f64 / 1_048_576.0;
-        let mb_total = total as f64 / 1_048_576.0;
-        emit(
-            "downloading",
-            downloaded,
-            total,
-            speed_kb,
-            &format!("Скачивание... {:.1}/{:.1} МБ", mb_done, mb_total),
-        );
-    }
-    drop(file);
+        if !response.status().is_success() {
+            return Err(format!("Ошибка скачивания обновления: HTTP {}", response.status()));
+        }
 
-    update_log(&format!("[updater] Download finished: {} bytes", downloaded));
+        total = response.content_length().unwrap_or(info.file_size);
+
+        use futures_util::StreamExt;
+        let mut stream = response.bytes_stream();
+        let mut downloaded: u64 = 0;
+        let mut file = match fs::File::create(&download_path) {
+            Ok(f) => f,
+            Err(e) => return Err(format!("Не удалось создать файл: {}", e)),
+        };
+        let start_time = std::time::Instant::now();
+        let mut stream_failed = false;
+
+        while let Some(chunk_result) = stream.next().await {
+            let chunk = match chunk_result {
+                Ok(c) => c,
+                Err(e) => {
+                    last_err = format!(
+                        "Соединение прервано на {} байтах (попытка {}/{}): {}",
+                        downloaded, attempt, max_attempts, e
+                    );
+                    update_log(&last_err);
+                    stream_failed = true;
+                    break;
+                }
+            };
+            if let Err(e) = file.write_all(&chunk) {
+                return Err(format!("Ошибка записи файла: {}", e));
+            }
+            downloaded += chunk.len() as u64;
+
+            let elapsed = start_time.elapsed().as_secs_f64();
+            let speed_kb = if elapsed > 0.1 {
+                (downloaded as f64 / elapsed / 1024.0) as u64
+            } else {
+                0
+            };
+
+            let mb_done = downloaded as f64 / 1_048_576.0;
+            let mb_total = total as f64 / 1_048_576.0;
+            emit(
+                "downloading",
+                downloaded,
+                total,
+                speed_kb,
+                &format!("Скачивание... {:.1}/{:.1} МБ", mb_done, mb_total),
+            );
+        }
+        drop(file);
+
+        if stream_failed {
+            if attempt >= max_attempts {
+                return Err(last_err);
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            continue;
+        }
+
+        update_log(&format!("[updater] Download finished: {} bytes", downloaded));
+        break;
+    }
+
     emit("applying", total, total, 0, "Установка обновления...");
 
 
