@@ -85,7 +85,7 @@ pub async fn find_java() -> Result<JavaInfo, String> {
 fn get_bundled_java_path() -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
         .join("java")
         .join("bin")
         .join("java.exe")
@@ -113,7 +113,7 @@ fn get_java_version(java_path: &PathBuf) -> Option<String> {
 #[tauri::command]
 pub async fn download_java() -> Result<JavaInfo, String> {
     let client = reqwest::Client::builder()
-        .user_agent("DarkSparkLauncher/1.0")
+        .user_agent("RamzLauncher/1.0")
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -145,7 +145,7 @@ pub async fn download_java() -> Result<JavaInfo, String> {
 
     let java_base_dir = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
         .join("java");
 
     if java_base_dir.exists() {

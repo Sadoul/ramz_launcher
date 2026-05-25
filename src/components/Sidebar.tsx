@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import type { CustomModpack } from "../App";
 
-const NAV_ORDER_STORAGE_KEY = "danganverse_nav_order";
+const NAV_ORDER_STORAGE_KEY = "ramz_nav_order";
 
-export type Page = "danganverse" | "custom" | "settings" | "admin" | `custom:${string}`;
+export type Page = "ramz" | "custom" | "settings" | "admin" | `custom:${string}`;
 
 interface SidebarProps {
   currentPage: Page;
@@ -70,12 +70,12 @@ type NavItem = { id: Page; label: string; icon: React.ReactElement; locked?: boo
 type ContextMenuState = { x: number; y: number; item: NavItem } | null;
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "danganverse", label: "DanganVerse", icon: <IconGlobe /> },
+  { id: "ramz", label: "Зомби апокалипсис", icon: <IconGlobe /> },
   { id: "custom",    label: "Свой модпак",  icon: <IconBox /> },
   { id: "settings",  label: "Настройки",    icon: <IconSettings /> },
 ];
 
-const DISCORD_URL_STORAGE = "danganverse_discord_url";
+const DISCORD_URL_STORAGE = "ramz_discord_url";
 
 export default function Sidebar({ currentPage, onPageChange, account, onLogout, avatarUrl, customModpacks, onConfigurePage, onDeleteBuiltinModpack, onDeleteCustomModpack, discordUrl }: SidebarProps & { discordUrl?: string }) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
@@ -271,9 +271,9 @@ export default function Sidebar({ currentPage, onPageChange, account, onLogout, 
     <aside className="sidebar">
       
       <div className="sidebar-logo">
-        <img src="/icons/Inside.png" alt="DanganVerse" className="sidebar-logo-img" draggable={false} />
+        <img src="/icons/Inside.png" alt="Ramz" className="sidebar-logo-img" draggable={false} />
         <div className="sidebar-logo-text">
-          <div className="sidebar-logo-name">DanganVerse</div>
+          <div className="sidebar-logo-name">Ramz</div>
           <div className="sidebar-logo-sub">Launcher</div>
         </div>
       </div>
@@ -338,7 +338,7 @@ export default function Sidebar({ currentPage, onPageChange, account, onLogout, 
             >
               Настроить {contextMenu.item.id === "custom" && !contextMenu.item.customName && <span className="context-lock"><IconLock /></span>}
             </button>
-            {contextMenu.item.id === "danganverse" && (
+            {contextMenu.item.id === "ramz" && (
               <button
                 className="sidebar-context-item danger"
                 onClick={() => {
@@ -384,7 +384,7 @@ export default function Sidebar({ currentPage, onPageChange, account, onLogout, 
         <motion.button
           className="sidebar-icon-btn"
           onClick={handleDiscord}
-          title="Discord сервер DanganVerse"
+          title="Discord сервер Ramz"
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.93 }}
           style={{ flex: 1 }}
@@ -406,7 +406,7 @@ export default function Sidebar({ currentPage, onPageChange, account, onLogout, 
           </div>
           <div className="account-info">
             <div className="account-name">{account.username}</div>
-            <div className="account-type">{account.account_type === "offline" ? "Офлайн" : account.account_type === "danganverse" ? "DanganVerse" : "Microsoft"}</div>
+            <div className="account-type">{account.account_type === "offline" ? "Офлайн" : account.account_type === "ramz" ? "Ramz" : "Microsoft"}</div>
           </div>
           <motion.button
             className="logout-btn"

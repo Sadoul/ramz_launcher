@@ -159,7 +159,7 @@ fn default_enabled() -> bool { true }
 fn get_minecraft_dir() -> PathBuf {
     let dir = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
         .join("minecraft");
     fs::create_dir_all(&dir).ok();
     dir
@@ -264,7 +264,7 @@ async fn download_file_inner(
 
 fn build_repo_for_modpack(name: &str) -> Option<&'static str> {
     match name.to_lowercase().as_str() {
-        "danganverse" => Some("Sadoul/darkspark_modpack"),
+        "ramz" => Some("Sadoul/ramz_modpack"),
         _ => None,
     }
 }
@@ -306,7 +306,7 @@ fn is_user_owned(rel_path: &str) -> bool {
 fn modpack_meta_path(modpack_name: &str) -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
         .join("modpacks")
         .join(format!("{}_meta.json", modpack_name))
 }
@@ -424,7 +424,7 @@ async fn sync_build_files(client: &reqwest::Client, modpack_name: &str, mc_dir: 
 pub async fn sync_modpack_files(modpack_name: String, game_dir: Option<String>) -> Result<String, String> {
     LAUNCH_CANCELLED.store(false, Ordering::SeqCst);
     let client = reqwest::Client::builder()
-        .user_agent("DanganVerseLauncher/2.10")
+        .user_agent("RamzLauncher/2.10")
         .timeout(std::time::Duration::from_secs(120))
         .build()
         .map_err(|e| e.to_string())?;
@@ -1007,7 +1007,7 @@ pub async fn launch_game(
     }
 
     let client = reqwest::Client::builder()
-        .user_agent("DanganVerseLauncher/2.10")
+        .user_agent("RamzLauncher/2.10")
         .timeout(std::time::Duration::from_secs(120))
         .build()
         .map_err(|e| e.to_string())?;
@@ -1342,7 +1342,7 @@ pub async fn launch_game(
                     let replaced = s
                         .replace("${classpath}", &classpath)
                         .replace("${natives_directory}", &natives_dir.to_string_lossy())
-                        .replace("${launcher_name}", "DanganVerseLauncher")
+                        .replace("${launcher_name}", "RamzLauncher")
                         .replace("${launcher_version}", "2.10")
                         .replace("${library_directory}", &mc_dir.join("libraries").to_string_lossy())
                         .replace("${classpath_separator}", ";");
@@ -1377,7 +1377,7 @@ pub async fn launch_game(
             .replace("${auth_uuid}", &uuid)
             .replace("${auth_access_token}", &access_token)
             .replace("${user_type}", "mojang")
-            .replace("${version_type}", "DanganVerseLauncher");
+            .replace("${version_type}", "RamzLauncher");
         args.extend(game_args.split_whitespace().map(|s| s.to_string()));
     } else {
         log("[launch] Using modern arguments.game format");
@@ -1413,7 +1413,7 @@ pub async fn launch_game(
                         .replace("${auth_xuid}", "")
                         .replace("${user_properties}", "{}")
                         .replace("${user_type}", "mojang")
-                        .replace("${version_type}", "DanganVerseLauncher");
+                        .replace("${version_type}", "RamzLauncher");
                     args.push(replaced);
                 }
             }
@@ -1441,7 +1441,7 @@ pub async fn launch_game(
     // Write servers.dat so the server appears in the in-game list
     if let Some(ref ip) = server_ip {
         let servers_dat = mc_dir.join("servers.dat");
-        let nbt = build_servers_dat(ip, "DanganVerse");
+        let nbt = build_servers_dat(ip, "Ramz");
         match fs::write(&servers_dat, &nbt) {
             Ok(()) => log(&format!("[launch] Written servers.dat with server: {ip}")),
             Err(e) => log(&format!("[launch] Failed to write servers.dat: {e}")),

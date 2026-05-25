@@ -4,7 +4,7 @@ import type { Page } from "./Sidebar";
 import type { CustomModpack } from "../App";
 
 const BUILTIN_CONFIGS: Record<string, { title: string; loader: string; mcVersion: string; loaderVersion: string; memory: number; jvmArgs: string }> = {
-  danganverse: { title: "DanganVerse", loader: "fabric", mcVersion: "1.20.1", loaderVersion: "", memory: 4096, jvmArgs: "" },
+  ramz: { title: "Зомби апокалипсис", loader: "fabric", mcVersion: "1.20.1", loaderVersion: "", memory: 4096, jvmArgs: "" },
 };
 
 interface Props {
@@ -26,7 +26,7 @@ export default function ModpackSettingsPanel({ page, customModpacks, onBack, onC
   const [loaderVersion, setLoaderVersion] = useState(custom?.loader_version ?? builtin?.loaderVersion ?? "");
   const [memory, setMemory] = useState(() => {
     if (!isCustom) {
-      const saved = localStorage.getItem(`darkspark_modpack_memory_${page}`);
+      const saved = localStorage.getItem(`ramz_modpack_memory_${page}`);
       const parsed = saved ? Number(saved) : NaN;
       if (!Number.isNaN(parsed)) return parsed;
     }
@@ -40,7 +40,7 @@ export default function ModpackSettingsPanel({ page, customModpacks, onBack, onC
   const [loadingLoaderVersions, setLoadingLoaderVersions] = useState(false);
 
   useEffect(() => {
-    if (!isCustom && page === "danganverse") {
+    if (!isCustom && page === "ramz") {
       invoke<string>("get_builtin_modpack_dir", { modpackName: page })
         .then(setGameDir)
         .catch(() => {});
@@ -112,7 +112,7 @@ export default function ModpackSettingsPanel({ page, customModpacks, onBack, onC
   };
 
   const deletePack = async () => {
-    const title = isCustom ? name : "danganverse";
+    const title = isCustom ? name : "ramz";
     if (!confirm(`Удалить установленную сборку «${title}» с компьютера? Лаунчер останется.`)) return;
     try {
       if (isCustom) {

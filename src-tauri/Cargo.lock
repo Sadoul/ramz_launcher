@@ -581,7 +581,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "danganverse-launcher"
+name = "ramz-launcher"
 version = "2.70.40"
 dependencies = [
  "base64 0.22.1",

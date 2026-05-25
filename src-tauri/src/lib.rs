@@ -9,7 +9,7 @@ fn ensure_single_instance_or_exit() {
     use windows::Win32::Foundation::{ERROR_ALREADY_EXISTS, GetLastError};
     use windows::Win32::System::Threading::CreateMutexW;
 
-    let name: Vec<u16> = "Global\\DarkSparkLauncherSingleInstance\0".encode_utf16().collect();
+    let name: Vec<u16> = "Global\\RamzLauncherSingleInstance\0".encode_utf16().collect();
     unsafe {
         let handle = CreateMutexW(None, false, PCWSTR(name.as_ptr()));
         if GetLastError() == ERROR_ALREADY_EXISTS {
@@ -35,7 +35,7 @@ fn close_existing_launcher_processes() {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     let current_pid = std::process::id().to_string();
     let script = format!(
-        "Get-Process darkspark-launcher -ErrorAction SilentlyContinue | Where-Object {{ $_.Id -ne {} }} | Stop-Process -Force",
+        "Get-Process ramz-launcher -ErrorAction SilentlyContinue | Where-Object {{ $_.Id -ne {} }} | Stop-Process -Force",
         current_pid
     );
     let _ = std::process::Command::new("powershell.exe")
@@ -52,7 +52,7 @@ fn set_windows_app_user_model_id() {
     use windows::core::HSTRING;
     use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
 
-    let app_id = HSTRING::from("com.darkspark.launcher");
+    let app_id = HSTRING::from("com.ramz.launcher");
     unsafe {
         let _ = SetCurrentProcessExplicitAppUserModelID(&app_id);
     }
@@ -141,7 +141,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
 
             auth::login_offline,
-            auth::login_darkspark,
+            auth::login_ramz,
             auth::login_microsoft,
             auth::get_saved_account,
             auth::get_admin_token,

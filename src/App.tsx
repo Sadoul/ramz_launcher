@@ -61,12 +61,12 @@ export interface CustomModpack {
 
 let appInitialized = false;
 
-const DISCORD_URL_STORAGE = "danganverse_discord_url";
+const DISCORD_URL_STORAGE = "ramz_discord_url";
 const DISCORD_URL_FALLBACK = "https://discord.gg/yvFE4rjnjf";
 
 export default function App() {
   const [account, setAccount] = useState<Account | null>(null);
-  const [currentPage, setCurrentPage] = useState<Page>("danganverse");
+  const [currentPage, setCurrentPage] = useState<Page>("ramz");
   const [configurePage, setConfigurePage] = useState<Page | null>(null);
   const [loading, setLoading] = useState(true);
   const [javaPath, setJavaPath] = useState("");
@@ -75,7 +75,7 @@ export default function App() {
   const [jvmArgs, setJvmArgs] = useState("");
   const [gpuMode, setGpuMode] = useState("auto");
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem("darkspark_theme");
+    const saved = localStorage.getItem("ramz_theme");
     return saved === "dark" || saved === "light" ? saved : "dark";
   });
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export default function App() {
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem("darkspark_theme", theme);
+    localStorage.setItem("ramz_theme", theme);
     invoke("save_theme", { theme }).catch(() => {});
   }, [theme]);
 
@@ -130,16 +130,16 @@ export default function App() {
   const initializeApp = async () => {
     setLoading(true);
     try {
-      const savedMemory    = localStorage.getItem("darkspark_memory");
-      const savedJavaPath  = localStorage.getItem("darkspark_java_path");
-      const savedJavaVersion = localStorage.getItem("darkspark_java_version");
-      const savedJvmArgs   = localStorage.getItem("darkspark_jvm_args");
-      const savedGpuMode   = localStorage.getItem("darkspark_gpu_mode");
-      const savedTheme     = localStorage.getItem("darkspark_theme") as Theme | null;
-      const savedAllowMulti = localStorage.getItem("darkspark_allow_multiple_instances");
-      const savedClose     = localStorage.getItem("darkspark_close_launcher_on_game_start");
-      const savedReopen    = localStorage.getItem("darkspark_reopen_launcher_after_game_close");
-      const loggingEnabled = localStorage.getItem("darkspark_logging") !== "false";
+      const savedMemory    = localStorage.getItem("ramz_memory");
+      const savedJavaPath  = localStorage.getItem("ramz_java_path");
+      const savedJavaVersion = localStorage.getItem("ramz_java_version");
+      const savedJvmArgs   = localStorage.getItem("ramz_jvm_args");
+      const savedGpuMode   = localStorage.getItem("ramz_gpu_mode");
+      const savedTheme     = localStorage.getItem("ramz_theme") as Theme | null;
+      const savedAllowMulti = localStorage.getItem("ramz_allow_multiple_instances");
+      const savedClose     = localStorage.getItem("ramz_close_launcher_on_game_start");
+      const savedReopen    = localStorage.getItem("ramz_reopen_launcher_after_game_close");
+      const loggingEnabled = localStorage.getItem("ramz_logging") !== "false";
 
       if (savedMemory) { const m = parseInt(savedMemory); if (!isNaN(m)) setMaxMemory(Math.max(1024, Math.min(16384, m))); }
       if (savedJavaPath)    setJavaPath(savedJavaPath);
@@ -175,7 +175,7 @@ export default function App() {
           .catch(e => console.error("Update check failed:", e));
       }
 
-      invoke<string | null>("get_modpack_discord_url", { modpackName: "danganverse" })
+      invoke<string | null>("get_modpack_discord_url", { modpackName: "ramz" })
         .then(url => { if (url) { localStorage.setItem(DISCORD_URL_STORAGE, url); setDiscordUrl(url); } })
         .catch(() => {});
     } catch (e) {
@@ -199,7 +199,7 @@ export default function App() {
     try {
       await invoke("delete_custom_modpack", { name });
       await loadCustomModpacks();
-      setCurrentPage("danganverse");
+      setCurrentPage("ramz");
       showNotification(`Модпак «${name}» удалён`);
     } catch (e) {
       showNotification(String(e));
@@ -207,8 +207,8 @@ export default function App() {
   };
 
   const deleteBuiltinModpack = async (page: Page) => {
-    if (page !== "danganverse") return;
-    const title = "danganverse";
+    if (page !== "ramz") return;
+    const title = "ramz";
     if (!confirm(`Удалить установленную сборку «${title}» с компьютера? Лаунчер останется.`)) return;
     try {
       await invoke("delete_builtin_modpack", { modpackName: page });
@@ -235,38 +235,38 @@ export default function App() {
 
   const handleJavaChange = (path: string, version: string) => {
     setJavaPath(path); setJavaVersion(version);
-    localStorage.setItem("darkspark_java_path", path);
-    localStorage.setItem("darkspark_java_version", version);
+    localStorage.setItem("ramz_java_path", path);
+    localStorage.setItem("ramz_java_version", version);
   };
 
   const handleMemoryChange = (mem: number) => {
     setMaxMemory(mem);
-    localStorage.setItem("darkspark_memory", String(mem));
+    localStorage.setItem("ramz_memory", String(mem));
   };
 
   const handleJvmArgsChange = (args: string) => {
     setJvmArgs(args);
-    localStorage.setItem("darkspark_jvm_args", args);
+    localStorage.setItem("ramz_jvm_args", args);
   };
 
   const handleGpuModeChange = (mode: string) => {
     setGpuMode(mode);
-    localStorage.setItem("darkspark_gpu_mode", mode);
+    localStorage.setItem("ramz_gpu_mode", mode);
   };
 
   const handleAllowMultipleInstancesChange = (value: boolean) => {
     setAllowMultipleInstances(value);
-    localStorage.setItem("darkspark_allow_multiple_instances", String(value));
+    localStorage.setItem("ramz_allow_multiple_instances", String(value));
   };
 
   const handleCloseLauncherOnGameStartChange = (value: boolean) => {
     setCloseLauncherOnGameStart(value);
-    localStorage.setItem("darkspark_close_launcher_on_game_start", String(value));
+    localStorage.setItem("ramz_close_launcher_on_game_start", String(value));
   };
 
   const handleReopenLauncherAfterGameCloseChange = (value: boolean) => {
     setReopenLauncherAfterGameClose(value);
-    localStorage.setItem("darkspark_reopen_launcher_after_game_close", String(value));
+    localStorage.setItem("ramz_reopen_launcher_after_game_close", String(value));
   };
 
   const showNotification = (msg: string) => {
@@ -286,7 +286,7 @@ export default function App() {
         >
           <motion.img
             src="/icons/Inside.png"
-            alt="DanganVerse"
+            alt="Ramz"
             style={{ width: 72, height: 72, borderRadius: "18px", objectFit: "cover" }}
             animate={{ boxShadow: ["0 0 20px rgba(212,121,58,0.3)", "0 0 50px rgba(212,121,58,0.6)", "0 0 20px rgba(212,121,58,0.3)"] }}
             transition={{ duration: 2, repeat: Infinity }}
@@ -436,7 +436,7 @@ export default function App() {
             ) : (
               <GamePanel
                 key="fallback"
-                page="danganverse"
+                page="ramz"
                 account={account}
                 javaPath={javaPath}
                 maxMemory={maxMemory}
@@ -452,7 +452,7 @@ export default function App() {
       </div>
 
       <AnimatePresence>
-        {globalLaunchProgress && currentPage !== "danganverse" && !currentPage.startsWith("custom:") && (
+        {globalLaunchProgress && currentPage !== "ramz" && !currentPage.startsWith("custom:") && (
           <motion.div
             className="global-launch-progress"
             initial={{ opacity: 0, y: 16 }}

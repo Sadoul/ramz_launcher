@@ -1,12 +1,12 @@
 [package]
-name = "danganverse-launcher"
+name = "ramz-launcher"
 version = "2.70.40"
-description = "DanganVerse Minecraft Launcher"
+description = "Ramz Minecraft Launcher"
 authors = ["Sadoul"]
 edition = "2021"
 
 [lib]
-name = "danganverse_launcher_lib"
+name = "ramz_launcher_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

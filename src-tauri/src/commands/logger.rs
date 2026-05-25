@@ -10,14 +10,14 @@ static CLEANUP_ONCE: Once = Once::new();
 fn log_path() -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
         .join("launcher.log")
 }
 
 fn last_cleanup_marker() -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
         .join("log_cleanup.txt")
 }
 

@@ -33,7 +33,7 @@ pub struct ModpackInfo {
 fn get_modpacks_dir() -> PathBuf {
     let dir = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
         .join("modpacks");
     fs::create_dir_all(&dir).ok();
     dir
@@ -46,7 +46,7 @@ fn get_modpack_version_file(modpack_name: &str) -> PathBuf {
 fn modpack_meta_path_local(modpack_name: &str) -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
         .join("modpacks")
         .join(format!("{}_meta.json", modpack_name))
 }
@@ -67,7 +67,7 @@ pub async fn check_modpack_update(
     }
 
     let client = reqwest::Client::builder()
-        .user_agent("DarkSparkLauncher/1.0")
+        .user_agent("RamzLauncher/1.0")
         .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| e.to_string())?;
@@ -115,7 +115,7 @@ pub async fn download_modpack(
     CANCEL_FLAG.store(false, Ordering::SeqCst);
 
     let client = reqwest::Client::builder()
-        .user_agent("DarkSparkLauncher/1.0")
+        .user_agent("RamzLauncher/1.0")
         .timeout(std::time::Duration::from_secs(300))
         .build()
         .map_err(|e| e.to_string())?;

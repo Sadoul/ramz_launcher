@@ -1,4 +1,4 @@
-//! DanganVerse Launcher Stub — single exe bootstrap
+//! Ramz Launcher Stub — single exe bootstrap
 //! Checks if launcher is installed, installs via NSIS if not, then launches it.
 //! On subsequent runs: just launches the already-installed launcher.
 
@@ -20,12 +20,12 @@ struct GitHubAsset {
     browser_download_url: String,
 }
 
-const GITHUB_REPO: &str = "Sadoul/darkspark_launcher";
+const GITHUB_REPO: &str = "Sadoul/ramz_launcher";
 #[allow(dead_code)]
-const STUB_ASSET_NAME: &str = "DanganVerse-Launcher.exe";
-const LAUNCHER_EXE: &str = "danganverse-launcher.exe";
-const LAUNCHER_PRODUCT_NAME: &str = "DanganVerse Launcher";
-const REG_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\DanganVerse Launcher";
+const STUB_ASSET_NAME: &str = "Ramz-Launcher.exe";
+const LAUNCHER_EXE: &str = "ramz-launcher.exe";
+const LAUNCHER_PRODUCT_NAME: &str = "Ramz Launcher";
+const REG_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Ramz Launcher";
 const STUB_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -33,14 +33,14 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 const DETACHED_PROCESS: u32 = 0x00000008;
 
 fn log(msg: &str) {
-    let path = std::env::temp_dir().join("danganverse_stub.log");
+    let path = std::env::temp_dir().join("ramz_stub.log");
     let line = format!("[{}] {}\r\n", chrono::Local::now().format("%H:%M:%S"), msg);
     let _ = std::fs::OpenOptions::new().create(true).append(true).open(&path)
         .and_then(|mut f| std::io::Write::write_all(&mut f, line.as_bytes()));
 }
 
 fn main() {
-    log(&format!("DanganVerse-Stub v{} starting", STUB_VERSION));
+    log(&format!("Ramz-Stub v{} starting", STUB_VERSION));
 
     // Fast path: launcher already installed — launch immediately, no network needed.
     if let Some(path) = find_launcher() {
@@ -53,7 +53,7 @@ fn main() {
 
     // Launcher not installed — fetch release and install it.
     let client = match reqwest::blocking::Client::builder()
-        .user_agent("DanganVerse-Stub/1.0")
+        .user_agent("Ramz-Stub/1.0")
         .timeout(std::time::Duration::from_secs(8))
         .build()
     {
@@ -81,7 +81,7 @@ fn main() {
 
     if let Some(asset) = installer_asset {
         log(&format!("Downloading NSIS installer: {}", asset.name));
-        if let Some(tmp) = download_file(&client, &asset.browser_download_url, "DanganVerse-Setup.exe") {
+        if let Some(tmp) = download_file(&client, &asset.browser_download_url, "Ramz-Setup.exe") {
             log("Running NSIS installer silently...");
             let status = Command::new(&tmp)
                 .arg("/S")
@@ -186,7 +186,7 @@ fn close_running_launcher() {
 fn show_error(msg: &str) {
     let _ = Command::new("cmd")
         .args(["/c", &format!(
-            "mshta \"javascript:var sh=new ActiveXObject('WScript.Shell');sh.Popup('{}',0,'DanganVerse Launcher',16);close()\"",
+            "mshta \"javascript:var sh=new ActiveXObject('WScript.Shell');sh.Popup('{}',0,'Ramz Launcher',16);close()\"",
             msg
         )])
         .creation_flags(CREATE_NO_WINDOW)

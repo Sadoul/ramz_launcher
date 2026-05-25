@@ -58,8 +58,8 @@ interface Props {
 }
 
 
-const ADMIN_NAME = "DarkSpark00";
-const BUILD_NAMES = ["danganverse"];
+const ADMIN_NAME = "Ramz00";
+const BUILD_NAMES = ["ramz"];
 const LOADERS = ["vanilla", "forge", "fabric", "neoforge", "optifine"];
 
 const formatSize = (size: number) => `${(size / 1024 / 1024).toFixed(1)} МБ`;
@@ -75,7 +75,7 @@ export default function AdminPanel({ username, isOwner, onDiscordUrlChange }: Pr
 
   const [saving, setSaving] = useState(false);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
-  const [activeBuild, setActiveBuild] = useState("danganverse");
+  const [activeBuild, setActiveBuild] = useState("ramz");
   const [manifest, setManifest] = useState<BuildManifest | null>(null);
   const [uploadingMod, setUploadingMod] = useState(false);
   const [uploadingBuild, setUploadingBuild] = useState(false);
@@ -214,7 +214,7 @@ export default function AdminPanel({ username, isOwner, onDiscordUrlChange }: Pr
 
   const deleteAccount = (account: AccountRow) => {
     if (account.username.toLowerCase() === ADMIN_NAME.toLowerCase()) {
-      setMessage("Нельзя удалить DarkSpark00");
+      setMessage("Нельзя удалить Ramz00");
       return;
     }
     const ok = window.confirm(`Удалить игрока ${account.username}? Это применится после commit.`);
@@ -536,7 +536,7 @@ export default function AdminPanel({ username, isOwner, onDiscordUrlChange }: Pr
     if (!githubToken.trim()) { notify("Введите GitHub token перед загрузкой"); return; }
     try {
       const { open } = await import("@tauri-apps/plugin-dialog");
-      const selected = await open({ directory: true, multiple: false, title: "Выберите папку модпака (например: danganverse)" });
+      const selected = await open({ directory: true, multiple: false, title: "Выберите папку модпака (например: ramz)" });
       if (typeof selected !== "string") return;
 
       setUploadingBuild(true);
@@ -638,7 +638,7 @@ export default function AdminPanel({ username, isOwner, onDiscordUrlChange }: Pr
         {isOwner && (
           <button className={`admin-main-tab ${activeTab === "builds" ? "active" : ""}`} onClick={() => setActiveTab("builds")}>
             <span>Сборки</span>
-            <small>DanganVerse и MiniGames: моды, версия, loader</small>
+            <small>Зомби апокалипсис и MiniGames: моды, версия, loader</small>
           </button>
         )}
 
@@ -659,7 +659,7 @@ export default function AdminPanel({ username, isOwner, onDiscordUrlChange }: Pr
         <>
           <div className="admin-note">
             Здесь можно менять пароли и удалять игроков. После подтверждения лаунчер сам зашифрует
-            <b> public/auth/offline_accounts.danganverseenc</b> и отправит commit в GitHub.
+            <b> public/auth/offline_accounts.ramzenc</b> и отправит commit в GitHub.
           </div>
 
           <div className="admin-account-list">
@@ -698,7 +698,7 @@ export default function AdminPanel({ username, isOwner, onDiscordUrlChange }: Pr
           <div className="admin-build-tabs">
             {BUILD_NAMES.map(build => (
               <button key={build} className={`admin-build-tab ${activeBuild === build ? "active" : ""}`} onClick={() => setActiveBuild(build)}>
-                {build === "danganverse" ? "DanganVerse" : build}
+                {build === "ramz" ? "Зомби апокалипсис" : build}
               </button>
             ))}
           </div>

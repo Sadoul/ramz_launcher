@@ -1,4 +1,4 @@
-name: Build and Release DanganVerse Launcher
+name: Build and Release Ramz Launcher
 
 on:
   push:
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: launcher-exe
-          path: src-tauri/target/release/danganverse-launcher.exe
+          path: src-tauri/target/release/ramz-launcher.exe
           retention-days: 1
 
   build-stub:
@@ -80,7 +80,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: stub-exe
-          path: stub-rs/target/release/DanganVerse-Launcher.exe
+          path: stub-rs/target/release/Ramz-Launcher.exe
           retention-days: 1
 
   release:
@@ -104,12 +104,12 @@ jobs:
         run: ls -la dist/
       - uses: softprops/action-gh-release@v2
         with:
-          name: "DanganVerse Launcher ${{ github.ref_name }}"
+          name: "Ramz Launcher ${{ github.ref_name }}"
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
-            dist/stub/DanganVerse-Launcher.exe
-            dist/launcher/danganverse-launcher.exe
+            dist/stub/Ramz-Launcher.exe
+            dist/launcher/ramz-launcher.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

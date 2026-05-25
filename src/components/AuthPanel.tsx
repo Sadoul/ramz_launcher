@@ -13,7 +13,7 @@ interface AuthPanelProps {
   onLogin: (account: Account) => void;
 }
 
-const ADMIN_NAME = "DarkSpark00";
+const ADMIN_NAME = "Ramz00";
 const ADMIN_PASSWORD = "Oiw$8z09o@H8";
 
 const UserIcon = () => (
@@ -57,7 +57,7 @@ const itemVariants = {
   }),
 };
 
-const LAST_USERNAME_KEY = "darkspark_last_username";
+const LAST_USERNAME_KEY = "ramz_last_username";
 
 export default function AuthPanel({ onLogin }: AuthPanelProps) {
   const [username, setUsername] = useState(() => localStorage.getItem(LAST_USERNAME_KEY) ?? "");
@@ -83,7 +83,7 @@ export default function AuthPanel({ onLogin }: AuthPanelProps) {
       return;
     }
 
-    // Admin login — DarkSpark00 requires password
+    // Admin login — Ramz00 requires password
     if (cleanUsername.toLowerCase() === ADMIN_NAME.toLowerCase()) {
       if (!showPasswordPrompt) {
         setPendingUsername(cleanUsername);
@@ -101,7 +101,7 @@ export default function AuthPanel({ onLogin }: AuthPanelProps) {
       setLoading(true);
       setError("");
       try {
-        const account = await invoke<Account>("login_darkspark", {
+        const account = await invoke<Account>("login_ramz", {
           username: pendingUsername,
           password,
         });
@@ -176,10 +176,10 @@ export default function AuthPanel({ onLogin }: AuthPanelProps) {
 
         <motion.div className="auth-modal-header" custom={0} variants={itemVariants} initial="hidden" animate="visible">
           <div className="auth-modal-logo-wrap">
-            <img src="/icons/Inside.png" alt="DanganVerse" className="auth-modal-logo" draggable={false} />
+            <img src="/icons/Inside.png" alt="Ramz" className="auth-modal-logo" draggable={false} />
             <div className="auth-modal-logo-glow" />
           </div>
-          <h1 className="auth-modal-title">DanganVerse Launcher</h1>
+          <h1 className="auth-modal-title">Ramz Launcher</h1>
           {showPasswordPrompt ? (
             <p className="auth-modal-subtitle">Введите пароль администратора</p>
           ) : (
@@ -253,7 +253,7 @@ export default function AuthPanel({ onLogin }: AuthPanelProps) {
 
         <motion.div className="auth-modal-footer" custom={3} variants={itemVariants} initial="hidden" animate="visible">
           <div className="auth-modal-divider" />
-          <span className="auth-modal-version">DanganVerse Launcher</span>
+          <span className="auth-modal-version">Ramz Launcher</span>
         </motion.div>
       </motion.div>
     </motion.div>

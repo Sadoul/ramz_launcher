@@ -6,11 +6,11 @@ use super::logger::log as launcher_log;
 use std::fs;
 use std::path::PathBuf;
 
-const ACCOUNTS_KEY: &[u8] = b"DanganVerseLauncherFriendsOnlyKey_v1";
-const ADMIN_USERNAME: &str = "DarkSpark00";
+const ACCOUNTS_KEY: &[u8] = b"RamzLauncherFriendsOnlyKey_v1";
+const ADMIN_USERNAME: &str = "Ramz00";
 const ADMIN_PASSWORD: &str = "Oiw$8z09o@H8";
 const SESSION_SIG_KEY: &str = "dV3r5e!Lu@nch_S3ss!0n#2024_x9k";  
-const ACCOUNTS_REPO_API: &str = "https://api.github.com/repos/Sadoul/darkspark_modpack/contents/offline_accounts.danganverseenc";
+const ACCOUNTS_REPO_API: &str = "https://api.github.com/repos/Sadoul/ramz_modpack/contents/offline_accounts.ramzenc";
 const ACCOUNTS_BRANCH: &str = "main";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -77,7 +77,7 @@ struct GitHubCommitInfo {
 fn get_config_dir() -> PathBuf {
     let dir = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse");
+        .join(".ramz");
     fs::create_dir_all(&dir).ok();
     dir
 }
@@ -117,7 +117,7 @@ pub async fn save_theme(theme: String) -> Result<(), String> {
 }
 
 fn get_accounts_cache_file() -> PathBuf {
-    get_config_dir().join("offline_accounts.danganverseenc")
+    get_config_dir().join("offline_accounts.ramzenc")
 }
 
 fn xor_bytes(data: &[u8]) -> Vec<u8> {
@@ -157,7 +157,7 @@ fn encrypt_accounts_payload(accounts: &OfflineCredentialFile) -> Result<String, 
 async fn load_accounts() -> Result<OfflineCredentialFile, String> {
     launcher_log("[accounts] load_accounts: starting");
     let client = reqwest::Client::builder()
-        .user_agent("DanganVerseLauncher/Accounts")
+        .user_agent("RamzLauncher/Accounts")
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| e.to_string())?;
@@ -192,7 +192,7 @@ async fn load_accounts() -> Result<OfflineCredentialFile, String> {
     }
 
     launcher_log("[accounts] load_accounts: falling back to embedded");
-    decrypt_accounts_payload(include_str!("../../../public/auth/offline_accounts.danganverseenc"))
+    decrypt_accounts_payload(include_str!("../../../public/auth/offline_accounts.ramzenc"))
 }
 
 fn is_owner(username: &str) -> bool {
@@ -217,7 +217,7 @@ async fn has_admin_panel_access(username: &str) -> Result<bool, String> {
 fn build_account(credential: &OfflineCredential) -> Account {
     let owner = is_owner(&credential.username);
     let moderator = is_moderator(credential);
-    let account_type = "danganverse".to_string();
+    let account_type = "ramz".to_string();
     let sig = compute_session_sig(&credential.username, &account_type);
     Account {
         username: credential.username.clone(),
@@ -278,7 +278,7 @@ pub async fn login_offline(username: String) -> Result<Account, String> {
     }
     let credentials = load_accounts().await?;
     if credentials.accounts.iter().any(|account| account.username.eq_ignore_ascii_case(&username)) {
-        return Err("Этот ник занят DanganVerse аккаунтом. Используйте вход DanganVerse аккаунт.".to_string());
+        return Err("Этот ник занят Ramz аккаунтом. Используйте вход Ramz аккаунт.".to_string());
     }
 
     let account_type = "offline".to_string();
@@ -299,7 +299,7 @@ pub async fn login_offline(username: String) -> Result<Account, String> {
 }
 
 #[tauri::command]
-pub async fn login_darkspark(username: String, password: String) -> Result<Account, String> {
+pub async fn login_ramz(username: String, password: String) -> Result<Account, String> {
     let username = username.trim().to_string();
     if !username.eq_ignore_ascii_case(ADMIN_USERNAME) {
         return Err("Аккаунт не найден".to_string());
@@ -308,7 +308,7 @@ pub async fn login_darkspark(username: String, password: String) -> Result<Accou
         return Err("Неверный пароль".to_string());
     }
 
-    let account_type = "danganverse".to_string();
+    let account_type = "ramz".to_string();
     let sig = compute_session_sig(ADMIN_USERNAME, &account_type);
     let account = Account {
         username: ADMIN_USERNAME.to_string(),
@@ -386,7 +386,7 @@ fn normalized_accounts(accounts: Vec<OfflineCredential>) -> Result<OfflineCreden
 
     }
     if !result.iter().any(|a| a.username.eq_ignore_ascii_case(ADMIN_USERNAME)) {
-        return Err("Нельзя удалить аккаунт DarkSpark00".to_string());
+        return Err("Нельзя удалить аккаунт Ramz00".to_string());
     }
     Ok(OfflineCredentialFile { accounts: result })
 }
@@ -411,7 +411,7 @@ pub async fn commit_admin_accounts(
     } else {
         let current_accounts = load_accounts().await?;
         if accounts.iter().any(|account| is_owner(&account.username)) {
-            return Err("Модератор не может видеть или менять аккаунт DarkSpark00".to_string());
+            return Err("Модератор не может видеть или менять аккаунт Ramz00".to_string());
         }
 
         let submitted_regular = normalized_accounts({
@@ -464,7 +464,7 @@ pub async fn commit_admin_accounts(
 
     let encrypted = encrypt_accounts_payload(&credential_file)?;
     let client = reqwest::Client::builder()
-        .user_agent("DanganVerseLauncher-AdminPanel")
+        .user_agent("RamzLauncher-AdminPanel")
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| e.to_string())?;

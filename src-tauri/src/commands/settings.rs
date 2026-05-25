@@ -6,7 +6,7 @@ use tauri::AppHandle;
 fn data_dir() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
 }
 
 fn path_to_data_url(path: &Path) -> Option<String> {
@@ -90,7 +90,7 @@ fn builtin_modpacks_root() -> PathBuf {
 
 fn sanitize_modpack_name(name: &str) -> Result<String, String> {
     match name {
-        "danganverse" => Ok(name.to_string()),
+        "ramz" => Ok(name.to_string()),
         _ => Err("Эту встроенную сборку нельзя изменить этой командой".to_string()),
     }
 }
@@ -142,8 +142,8 @@ pub async fn delete_launcher(app: AppHandle) -> Result<(), String> {
     #[cfg(windows)]
     {
         let uninstall_keys = [
-            r"Software\Microsoft\Windows\CurrentVersion\Uninstall\com.darkspark.launcher_is1",
-            r"Software\Microsoft\Windows\CurrentVersion\Uninstall\DarkSpark Launcher_is1",
+            r"Software\Microsoft\Windows\CurrentVersion\Uninstall\com.ramz.launcher_is1",
+            r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Ramz Launcher_is1",
         ];
 
         use winreg::enums::*;

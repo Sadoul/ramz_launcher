@@ -43,14 +43,14 @@ interface ModpackConfig {
 }
 
 const MODPACK_CONFIGS: Record<string, ModpackConfig> = {
-  danganverse: {
-    title: "DanganVerse",
-    description: "Мы — DanganVerse. РП проект в игре Майнкрафт, позволяющий вам прочувствовать атмосферу Данганронпы и иных вселенных. Разгадывайте тайны, веселитесь, испытывайте настоящие эмоции и погружайтесь в процесс вместе с нами!",
-    githubRepo: "Sadoul/darkspark_modpack",
-    modpackName: "danganverse",
+  ramz: {
+    title: "Зомби апокалипсис",
+    description: "Зомби апокалипсис — режим в игре Майнкрафт, погружающий вас в атмосферу выживания во время нашествия зомби. Сражайтесь, исследуйте и выживайте вместе с друзьями!",
+    githubRepo: "Sadoul/ramz_modpack",
+    modpackName: "ramz",
     defaultVersion: "fabric-1.20.1",
     mcVersion: "1.20.1",
-    bg: ["/backgrounds/danganverse.png"],
+    bg: ["/backgrounds/ramz.png"],
   },
 };
 
@@ -88,7 +88,7 @@ export default function GamePanel({
     defaultVersion: customPack.loader === "vanilla" ? customPack.mc_version : `${customPack.loader}-${customPack.mc_version}`,
     mcVersion: customPack.mc_version,
     bg: ["/backgrounds/default_background.png"],
-  } : (MODPACK_CONFIGS[page] || MODPACK_CONFIGS.danganverse);
+  } : (MODPACK_CONFIGS[page] || MODPACK_CONFIGS.ramz);
 
 
   const bgImage = useMemo(() => {

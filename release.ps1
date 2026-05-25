@@ -1,4 +1,4 @@
-# release.ps1 - локальная сборка и публикация релиза DanganVerse Launcher
+# release.ps1 - локальная сборка и публикация релиза Ramz Launcher
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -31,7 +31,7 @@ while (git tag -l $TAG) {
 
 Write-Host ""
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "  DanganVerse Launcher - Release $TAG" -ForegroundColor Cyan
+Write-Host "  Ramz Launcher - Release $TAG" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -54,13 +54,13 @@ if (-not $nsisFiles) { throw "NSIS exe не найден" }
 Write-Host "  -> Installer: $($nsisFiles[0].Name)" -ForegroundColor DarkGray
 
 Write-Host ""
-Write-Host "[3/4] Сборка DanganVerse-Launcher.exe (stub)..." -ForegroundColor Green
+Write-Host "[3/4] Сборка Ramz-Launcher.exe (stub)..." -ForegroundColor Green
 Push-Location stub-rs
 cargo build --release
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "Ошибка сборки stub" }
 Pop-Location
 
-$stubExe = "stub-rs\target\release\DanganVerse-Launcher.exe"
+$stubExe = "stub-rs\target\release\Ramz-Launcher.exe"
 if (-not (Test-Path $stubExe)) { throw "Stub exe не найден: $stubExe" }
 
 Write-Host ""
@@ -80,7 +80,7 @@ if ($LASTEXITCODE -ne 0) { throw "Ошибка git push (tag $TAG)" }
 
 $releaseFiles = @($nsisFiles[0].FullName, (Resolve-Path $stubExe).Path)
 gh release create $TAG `
-    --title "DanganVerse Launcher $TAG" `
+    --title "Ramz Launcher $TAG" `
     --notes "Обновление лаунчера до версии $TAG" `
     @releaseFiles
 
@@ -89,5 +89,5 @@ if ($LASTEXITCODE -ne 0) { throw "Ошибка создания релиза" }
 Write-Host ""
 Write-Host "==================================================" -ForegroundColor Green
 Write-Host "  Релиз $TAG успешно опубликован!" -ForegroundColor Green
-Write-Host "  https://github.com/Sadoul/darkspark_launcher/releases/tag/$TAG" -ForegroundColor Green
+Write-Host "  https://github.com/Sadoul/ramz_launcher/releases/tag/$TAG" -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Green

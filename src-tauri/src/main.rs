@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    danganverse_launcher_lib::run()
+    ramz_launcher_lib::run()
 }

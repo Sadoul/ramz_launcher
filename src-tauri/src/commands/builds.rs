@@ -20,7 +20,7 @@ fn token_preview(token: &str) -> String {
 }
 
 const BUILD_BRANCH: &str = "main";
-const USER_AGENT: &str = "DanganVerseLauncher-BuildAdmin";
+const USER_AGENT: &str = "RamzLauncher-BuildAdmin";
 
 // GitHub Contents API hard limit is 100 MB. We upload files larger than this
 // threshold as release assets (Releases support up to 2 GB per file).
@@ -131,7 +131,7 @@ fn git_blob_sha1(content: &[u8]) -> String {
 fn launcher_data_dir() -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".danganverse")
+        .join(".ramz")
 }
 
 fn download_dir_file() -> PathBuf {
@@ -141,7 +141,7 @@ fn download_dir_file() -> PathBuf {
 fn default_download_dir() -> PathBuf {
     dirs::download_dir()
         .unwrap_or_else(|| launcher_data_dir())
-        .join("DanganVerse Downloads")
+        .join("Ramz Downloads")
 }
 
 fn read_download_dir() -> PathBuf {
@@ -166,7 +166,7 @@ fn safe_file_name(name: &str) -> String {
 
 fn repo_for_build(build: &str) -> Result<&'static str, String> {
     match build.to_lowercase().as_str() {
-        "danganverse" => Ok("Sadoul/darkspark_modpack"),
+        "ramz" => Ok("Sadoul/ramz_modpack"),
         _ => Err(format!("Неизвестная сборка: {build}")),
     }
 }
@@ -230,17 +230,17 @@ async fn get_github_file(client: &reqwest::Client, token: &str, api_url: &str) -
     if status == reqwest::StatusCode::UNAUTHORIZED {
         let body = response.text().await.unwrap_or_default();
         launcher_log(&format!("[builds] 401 body: {body}"));
-        return Err("Токен GitHub недействителен или истёк. Проверьте: токен должен иметь разрешение «Contents: Read and write» для репозитория Sadoul/darkspark_modpack. Fine-grained PAT: нужно выбрать этот репозиторий в настройках токена.".to_string());
+        return Err("Токен GitHub недействителен или истёк. Проверьте: токен должен иметь разрешение «Contents: Read and write» для репозитория Sadoul/ramz_modpack. Fine-grained PAT: нужно выбрать этот репозиторий в настройках токена.".to_string());
     }
     if status == reqwest::StatusCode::FORBIDDEN {
         let body = response.text().await.unwrap_or_default();
         launcher_log(&format!("[builds] 403 body: {body}"));
         let hint = if body.contains("rate limit") {
-            "GitHub вернул 403 (rate limit). Проверьте, что токен реально передаётся (не пустая строка) и что у токена есть доступ к Sadoul/darkspark_modpack. Если используете VPN/Cloudflare Warp — попробуйте отключить."
+            "GitHub вернул 403 (rate limit). Проверьте, что токен реально передаётся (не пустая строка) и что у токена есть доступ к Sadoul/ramz_modpack. Если используете VPN/Cloudflare Warp — попробуйте отключить."
         } else if body.contains("Resource not accessible") {
-            "GitHub вернул 403 «Resource not accessible by personal access token». Fine-grained PAT не выбрал репозиторий Sadoul/darkspark_modpack или нет разрешения Contents: Read and write."
+            "GitHub вернул 403 «Resource not accessible by personal access token». Fine-grained PAT не выбрал репозиторий Sadoul/ramz_modpack или нет разрешения Contents: Read and write."
         } else {
-            "GitHub вернул 403 Forbidden. У токена нет write-доступа к репозиторию Sadoul/darkspark_modpack либо аккаунт не является collaborator."
+            "GitHub вернул 403 Forbidden. У токена нет write-доступа к репозиторию Sadoul/ramz_modpack либо аккаунт не является collaborator."
         };
         return Err(format!("{hint}\n\nПолный ответ: {body}"));
     }
@@ -295,7 +295,7 @@ async fn put_github_file_with_client(
             "Токен недействителен или истёк."
         } else if status == reqwest::StatusCode::FORBIDDEN {
             if body.contains("Resource not accessible") {
-                "У токена нет прав на запись в этот репозиторий. Нужно: Contents: Read and write + выбран репозиторий Sadoul/darkspark_modpack."
+                "У токена нет прав на запись в этот репозиторий. Нужно: Contents: Read and write + выбран репозиторий Sadoul/ramz_modpack."
             } else if body.contains("rate limit") {
                 "GitHub rate limit. Попробуйте через несколько минут или отключите VPN/Warp."
             } else {
