@@ -69,7 +69,7 @@ Write-Host "[4/4] Публикация релиза $TAG на GitHub..." -Foregr
 $staged = git status --porcelain
 if ($staged) {
     git add -A
-    git commit -m "Коммит 4"
+    git commit -m "Коммит 5"
 }
 
 git tag $TAG

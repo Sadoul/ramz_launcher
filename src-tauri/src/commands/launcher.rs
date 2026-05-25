@@ -712,10 +712,11 @@ async fn run_modded_installer(
     check_launch_cancelled()?;
     set_progress(loader, 2.0, 4.0, &format!("Запуск {} installer в фоне...", loader));
     log(&format!(
-        "[{}] Running hidden: {} -Djava.awt.headless=true -jar {} --installClient in {}",
+        "[{}] Running hidden: {} -Djava.awt.headless=true -jar {} --installClient {} in {}",
         loader,
         java_path,
         installer_path.display(),
+        mc_dir.display(),
         mc_dir.display()
     ));
 
@@ -725,6 +726,7 @@ async fn run_modded_installer(
 
     let installer_str = installer_path.to_str().unwrap_or_default().to_string();
     let mc_dir_str = mc_dir.clone();
+    let mc_dir_arg = mc_dir.to_str().unwrap_or_default().to_string();
     let loader_name = loader.to_string();
 
     let output = tokio::task::spawn_blocking(move || {
@@ -734,6 +736,7 @@ async fn run_modded_installer(
                 "-jar",
                 &installer_str,
                 "--installClient",
+                &mc_dir_arg,
             ])
             .current_dir(&mc_dir_str)
             .stdin(std::process::Stdio::null())
