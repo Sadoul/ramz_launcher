@@ -857,6 +857,157 @@ fn version_str_to_mc(s: &str) -> String {
     s.to_string()
 }
 
+/// Returns true if a Minecraft version requires Java 21+.
+/// MC 1.20.5+ uses Java 21 (mainly for NeoForge / Forge mods).
+fn mc_requires_java21(mc_version: &str) -> bool {
+    let v = mc_version.strip_prefix("1.").unwrap_or(mc_version);
+    let parts: Vec<&str> = v.splitn(3, '.').collect();
+    let major: u32 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let minor: u32 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+    if major > 20 {
+        return true;
+    }
+    if major == 20 && minor >= 5 {
+        return true;
+    }
+    false
+}
+
+/// Detect java major version (e.g. "17" or "21") from running `java -version`.
+fn detect_java_major(java_path: &str) -> Option<u32> {
+    use std::os::windows::process::CommandExt;
+    let mut cmd = Command::new(java_path);
+    cmd.arg("-version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let output = cmd.output().ok()?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let line = stderr.lines().next()?;
+    let start = line.find('"')? + 1;
+    let end = line[start..].find('"')? + start;
+    let version_str = &line[start..end];
+    // "17.0.18" -> major=17;  "1.8.0_x" -> major=8
+    if let Some(rest) = version_str.strip_prefix("1.") {
+        rest.split('.').next()?.parse().ok()
+    } else {
+        version_str.split('.').next()?.parse().ok()
+    }
+}
+
+/// If the chosen MC version requires Java 21 but the configured java is older,
+/// try to use a previously downloaded Java 21 from `.ramz/java21`, or download
+/// it once. Returns the path to the java executable to actually use.
+async fn ensure_java_for_mc(java_path: &str, mc_version: &str) -> Result<String, String> {
+    if !mc_requires_java21(mc_version) {
+        return Ok(java_path.to_string());
+    }
+    let current_major = detect_java_major(java_path).unwrap_or(0);
+    log(&format!("[launch] mc_version={} requires Java 21, current Java major={}", mc_version, current_major));
+    if current_major >= 21 {
+        return Ok(java_path.to_string());
+    }
+
+    let java21_dir = dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".ramz")
+        .join("java21");
+    let cached_exe = java21_dir.join("bin").join("java.exe");
+    if cached_exe.exists() {
+        if let Some(major) = detect_java_major(cached_exe.to_str().unwrap_or_default()) {
+            if major >= 21 {
+                log(&format!("[launch] Using cached Java 21: {}", cached_exe.display()));
+                return Ok(cached_exe.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    set_progress("java", 0.0, 1.0, "Загрузка Java 21 для NeoForge...");
+    log("[launch] Downloading Java 21 from Adoptium");
+    let client = reqwest::Client::builder()
+        .user_agent("RamzLauncher/2.10")
+        .timeout(std::time::Duration::from_secs(300))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let api_url = "https://api.adoptium.net/v3/assets/latest/21/hotspot?architecture=x64&image_type=jre&os=windows&vendor=eclipse";
+    let releases: Vec<serde_json::Value> = client
+        .get(api_url)
+        .send()
+        .await
+        .map_err(|e| format!("[java21] API request failed: {}", e))?
+        .json()
+        .await
+        .map_err(|e| format!("[java21] API parse failed: {}", e))?;
+    let download_url = releases
+        .first()
+        .and_then(|r| r["binary"]["package"]["link"].as_str())
+        .ok_or("Не удалось найти ссылку на Java 21")?
+        .to_string();
+    let bytes = client
+        .get(&download_url)
+        .send()
+        .await
+        .map_err(|e| format!("[java21] download failed: {}", e))?
+        .bytes()
+        .await
+        .map_err(|e| format!("[java21] read body failed: {}", e))?;
+
+    if java21_dir.exists() {
+        let _ = fs::remove_dir_all(&java21_dir);
+    }
+    fs::create_dir_all(&java21_dir)
+        .map_err(|e| format!("[java21] mkdir failed: {}", e))?;
+
+    let cursor = std::io::Cursor::new(&bytes);
+    let mut archive = zip::ZipArchive::new(cursor)
+        .map_err(|e| format!("[java21] zip open failed: {}", e))?;
+
+    // First entry's first path segment is the JDK root folder; strip it so
+    // bin/java.exe lands directly in java21_dir/bin/java.exe.
+    let root_dir = archive
+        .by_index(0)
+        .map_err(|e| format!("[java21] zip index failed: {}", e))?
+        .name()
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .to_string();
+    for i in 0..archive.len() {
+        let mut file = archive
+            .by_index(i)
+            .map_err(|e| format!("[java21] zip read failed: {}", e))?;
+        let name = file.name().to_string();
+        let relative = name
+            .strip_prefix(&format!("{}/", root_dir))
+            .unwrap_or(&name);
+        if relative.is_empty() {
+            continue;
+        }
+        let out_path = java21_dir.join(relative);
+        if name.ends_with('/') {
+            fs::create_dir_all(&out_path).ok();
+        } else {
+            if let Some(parent) = out_path.parent() {
+                fs::create_dir_all(parent).ok();
+            }
+            let mut buf = Vec::new();
+            std::io::Read::read_to_end(&mut file, &mut buf)
+                .map_err(|e| format!("[java21] zip extract failed: {}", e))?;
+            fs::write(&out_path, &buf)
+                .map_err(|e| format!("[java21] write failed: {}", e))?;
+        }
+    }
+
+    let exe = java21_dir.join("bin").join("java.exe");
+    if !exe.exists() {
+        return Err("[java21] Java 21 распакована, но java.exe не найден".to_string());
+    }
+    log(&format!("[launch] Java 21 ready: {}", exe.display()));
+    Ok(exe.to_string_lossy().to_string())
+}
+
 async fn get_latest_neoforge_version(
     client: &reqwest::Client,
     version_str: &str,
@@ -1089,6 +1240,15 @@ pub async fn launch_game(
         log(&format!("[launch] Vanilla version: {}", version));
         version.clone()
     };
+
+    // For Minecraft 1.20.5+ we need Java 21. If the current java is older,
+    // try to find/download Java 21 automatically so launch doesn't fail with
+    // "Unsupported major.minor version".
+    let mc_version_for_java = parse_modded_version(&launch_version)
+        .map(|(mc, _)| mc)
+        .unwrap_or_else(|| version.clone());
+    let java_path = ensure_java_for_mc(&java_path, &mc_version_for_java).await?;
+    log(&format!("[launch] Effective Java: {}", java_path));
 
     check_launch_cancelled()?;
     log(&format!("[launch] Using version ID: {}", actual_version));
@@ -1357,7 +1517,11 @@ pub async fn launch_game(
                         .replace("${launcher_name}", "RamzLauncher")
                         .replace("${launcher_version}", "2.10")
                         .replace("${library_directory}", &mc_dir.join("libraries").to_string_lossy())
-                        .replace("${classpath_separator}", ";");
+                        .replace("${classpath_separator}", ";")
+                        .replace("${version_name}", &actual_version)
+                        .replace("${game_directory}", &mc_dir.to_string_lossy())
+                        .replace("${assets_root}", &assets_dir.to_string_lossy())
+                        .replace("${assets_index_name}", &effective_assets);
                     jvm_arg_list.push(replaced);
                 }
             }
