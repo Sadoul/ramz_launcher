@@ -58,7 +58,7 @@ interface Props {
 }
 
 
-const ADMIN_NAME = "Ramz00";
+const ADMIN_NAME = "Ramz";
 const BUILD_NAMES = ["ramz"];
 const LOADERS = ["vanilla", "forge", "fabric", "neoforge", "optifine"];
 
@@ -214,7 +214,7 @@ export default function AdminPanel({ username, isOwner, onDiscordUrlChange }: Pr
 
   const deleteAccount = (account: AccountRow) => {
     if (account.username.toLowerCase() === ADMIN_NAME.toLowerCase()) {
-      setMessage("Нельзя удалить Ramz00");
+      setMessage("Нельзя удалить Ramz");
       return;
     }
     const ok = window.confirm(`Удалить игрока ${account.username}? Это применится после commit.`);

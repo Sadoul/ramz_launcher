@@ -13,8 +13,8 @@ interface AuthPanelProps {
   onLogin: (account: Account) => void;
 }
 
-const ADMIN_NAME = "Ramz00";
-const ADMIN_PASSWORD = "Oiw$8z09o@H8";
+const ADMIN_NAME = "Ramz";
+const ADMIN_PASSWORD = "Ramz";
 
 const UserIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -83,7 +83,7 @@ export default function AuthPanel({ onLogin }: AuthPanelProps) {
       return;
     }
 
-    // Admin login — Ramz00 requires password
+    // Admin login — Ramz requires password
     if (cleanUsername.toLowerCase() === ADMIN_NAME.toLowerCase()) {
       if (!showPasswordPrompt) {
         setPendingUsername(cleanUsername);

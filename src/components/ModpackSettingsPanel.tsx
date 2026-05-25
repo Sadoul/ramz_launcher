@@ -4,7 +4,7 @@ import type { Page } from "./Sidebar";
 import type { CustomModpack } from "../App";
 
 const BUILTIN_CONFIGS: Record<string, { title: string; loader: string; mcVersion: string; loaderVersion: string; memory: number; jvmArgs: string }> = {
-  ramz: { title: "Зомби апокалипсис", loader: "fabric", mcVersion: "1.20.1", loaderVersion: "", memory: 4096, jvmArgs: "" },
+  ramz: { title: "Зомби апокалипсис", loader: "neoforge", mcVersion: "1.21.1", loaderVersion: "", memory: 4096, jvmArgs: "" },
 };
 
 interface Props {

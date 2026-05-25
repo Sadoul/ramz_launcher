@@ -48,9 +48,9 @@ const MODPACK_CONFIGS: Record<string, ModpackConfig> = {
     description: "Зомби апокалипсис — режим выживания в зараженном мире. Сражайтесь с ордами зомби, ищите припасы и выживайте вместе с друзьями.",
     githubRepo: "Sadoul/ramz_modpack",
     modpackName: "ramz",
-    defaultVersion: "fabric-1.20.1",
-    mcVersion: "1.20.1",
-    bg: ["/backgrounds/ramz.png"],
+    defaultVersion: "neoforge-1.21.1",
+    mcVersion: "1.21.1",
+    bg: ["/backgrounds/zombie.jpg"],
   },
 };
 
@@ -379,7 +379,7 @@ export default function GamePanel({
       <div className="game-panel-footer">
         <div className="footer-glass-card">
           <span className="footer-modpack-name">{config.title}</span>
-          <span className="footer-mc-version">Minecraft {config.mcVersion}{config.defaultVersion.startsWith("fabric") ? " · Fabric" : config.defaultVersion.startsWith("forge") ? " · Forge" : ""}</span>
+          <span className="footer-mc-version">Minecraft {config.mcVersion}{config.defaultVersion.startsWith("fabric") ? " · Fabric" : config.defaultVersion.startsWith("neoforge") ? " · NeoForge" : config.defaultVersion.startsWith("forge") ? " · Forge" : ""}</span>
         </div>
         <div className="footer-actions">
           <span className={`status-badge ${status === "ready" ? "ready" : status === "update" ? "update" : "downloading"}`}>

@@ -7,8 +7,8 @@ use std::fs;
 use std::path::PathBuf;
 
 const ACCOUNTS_KEY: &[u8] = b"RamzLauncherFriendsOnlyKey_v1";
-const ADMIN_USERNAME: &str = "Ramz00";
-const ADMIN_PASSWORD: &str = "Oiw$8z09o@H8";
+const ADMIN_USERNAME: &str = "Ramz";
+const ADMIN_PASSWORD: &str = "Ramz";
 const SESSION_SIG_KEY: &str = "rZ!Lu@nch_S3ss!0n#2024_x9k";  
 const ACCOUNTS_REPO_API: &str = "https://api.github.com/repos/Sadoul/ramz_modpack/contents/offline_accounts.ramzenc";
 const ACCOUNTS_BRANCH: &str = "main";
@@ -386,7 +386,7 @@ fn normalized_accounts(accounts: Vec<OfflineCredential>) -> Result<OfflineCreden
 
     }
     if !result.iter().any(|a| a.username.eq_ignore_ascii_case(ADMIN_USERNAME)) {
-        return Err("Нельзя удалить аккаунт Ramz00".to_string());
+        return Err("Нельзя удалить аккаунт Ramz".to_string());
     }
     Ok(OfflineCredentialFile { accounts: result })
 }
@@ -411,7 +411,7 @@ pub async fn commit_admin_accounts(
     } else {
         let current_accounts = load_accounts().await?;
         if accounts.iter().any(|account| is_owner(&account.username)) {
-            return Err("Модератор не может видеть или менять аккаунт Ramz00".to_string());
+            return Err("Модератор не может видеть или менять аккаунт Ramz".to_string());
         }
 
         let submitted_regular = normalized_accounts({
