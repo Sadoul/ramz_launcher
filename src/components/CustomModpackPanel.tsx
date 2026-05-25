@@ -15,7 +15,7 @@ interface LoaderVersion {
 type Loader = "vanilla" | "forge" | "neoforge" | "fabric" | "optifine";
 
 const LOADERS: { id: Loader; label: string; color: string }[] = [
-  { id: "vanilla",  label: "Vanilla",  color: "#7CE38B" },
+  { id: "vanilla",  label: "Vanilla",  color: "#3CC8C8" },
   { id: "forge",    label: "Forge",    color: "#FF8A4C" },
   { id: "neoforge", label: "NeoForge", color: "#A78BFA" },
   { id: "fabric",   label: "Fabric",   color: "#FFD27A" },

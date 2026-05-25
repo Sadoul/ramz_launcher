@@ -117,7 +117,7 @@ export default function UpdateOverlay({ updateInfo, theme }: UpdateOverlayProps)
             transition={{ duration: 2.4, repeat: Infinity, delay: 0.4 }}
           />
           <img
-            src="/icons/Inside.png"
+            src="/icons/launcher.jpg"
             alt="Ramz"
             className="update-launcher-icon"
           />

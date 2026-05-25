@@ -176,7 +176,7 @@ export default function AuthPanel({ onLogin }: AuthPanelProps) {
 
         <motion.div className="auth-modal-header" custom={0} variants={itemVariants} initial="hidden" animate="visible">
           <div className="auth-modal-logo-wrap">
-            <img src="/icons/Inside.png" alt="Ramz" className="auth-modal-logo" draggable={false} />
+            <img src="/icons/launcher.jpg" alt="Ramz" className="auth-modal-logo" draggable={false} />
             <div className="auth-modal-logo-glow" />
           </div>
           <h1 className="auth-modal-title">Ramz Launcher</h1>

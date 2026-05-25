@@ -285,7 +285,7 @@ export default function App() {
           transition={{ duration: 0.5 }}
         >
           <motion.img
-            src="/icons/Inside.png"
+            src="/icons/launcher.jpg"
             alt="Ramz"
             style={{ width: 72, height: 72, borderRadius: "18px", objectFit: "cover" }}
             animate={{ boxShadow: ["0 0 20px rgba(212,121,58,0.3)", "0 0 50px rgba(212,121,58,0.6)", "0 0 20px rgba(212,121,58,0.3)"] }}

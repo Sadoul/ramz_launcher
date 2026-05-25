@@ -30,7 +30,7 @@
   --accent-2:        rgb(220, 35, 65);
   --accent-glow:     rgba(189, 22, 51, 0.35);
   --accent-glow-strong: rgba(189, 22, 51, 0.60);
-  --accent-green:    rgb(189, 22, 51);
+  --accent-green:    rgb(60, 200, 200);
   --accent-red:      rgb(220, 40, 60);
 
   
@@ -79,7 +79,7 @@
   --text-2:            #E8E8E8;
   --text-muted:        #AAAAAA;
   --text-on-accent:    #FFFFFF;
-  --accent-green:      rgb(189, 22, 51);
+  --accent-green:      rgb(60, 200, 200);
   --shadow-sm:         0 1px 4px  rgba(0,0,0,0.6);
   --shadow-md:         0 4px 14px rgba(0,0,0,0.7);
   --shadow-lg:         0 8px 28px rgba(0,0,0,0.8);
@@ -100,7 +100,7 @@
   --accent-2:            rgb(220, 35, 65);
   --accent-glow:         rgba(189, 22, 51, 0.28);
   --accent-glow-strong:  rgba(189, 22, 51, 0.50);
-  --accent-green:        #4A9B4D;
+  --accent-green:        rgb(0, 170, 180);
   --accent-red:          rgb(189, 22, 51);
 
   --border:              rgba(44,24,16,0.10);
@@ -614,7 +614,7 @@ button { font-family: inherit; }
 [data-theme="dark"] .auth-modal-card {
   box-shadow:
     var(--shadow-lg),
-    0 0 60px rgba(0,230,118,0.06),
+    0 0 60px rgba(60,200,200,0.10),
     0 0 0 1px rgba(255,255,255,0.03) inset,
     0 1px 0 rgba(255,255,255,0.04) inset;
 }
@@ -697,13 +697,13 @@ button { font-family: inherit; }
   flex-shrink: 0;
 }
 .auth-method-icon.offline-icon {
-  background: linear-gradient(135deg, rgba(var(--accent-green-rgb, 74,155,77), 0.12), rgba(var(--accent-green-rgb, 74,155,77), 0.05));
+  background: linear-gradient(135deg, rgba(60,200,200, 0.16), rgba(60,200,200, 0.05));
   color: var(--accent-green);
-  border: 1px solid rgba(var(--accent-green-rgb, 74,155,77), 0.15);
+  border: 1px solid rgba(60,200,200, 0.25);
 }
 [data-theme="dark"] .auth-method-icon.offline-icon {
-  background: linear-gradient(135deg, rgba(0,230,118,0.12), rgba(0,230,118,0.04));
-  border-color: rgba(0,230,118,0.15);
+  background: linear-gradient(135deg, rgba(60,200,200,0.18), rgba(60,200,200,0.06));
+  border-color: rgba(60,200,200,0.25);
   color: var(--accent-green);
 }
 .auth-method-icon.admin-icon {
@@ -1808,9 +1808,9 @@ button { font-family: inherit; }
   padding: 3px 9px; font-size: 10px; font-weight: 600;
   border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
 }
-.status-badge.ready { background: rgba(74,155,77,0.12); color: var(--accent-green); border: 1px solid rgba(74,155,77,0.25); }
+.status-badge.ready { background: rgba(60,200,200,0.16); color: var(--accent-green); border: 1px solid rgba(60,200,200,0.30); }
 .status-badge.downloading { background: rgba(201,106,34,0.12); color: var(--accent); border: 1px solid rgba(201,106,34,0.25); }
-[data-theme="dark"] .status-badge.ready { background: rgba(0,230,118,0.1); border-color: rgba(0,230,118,0.25); }
+[data-theme="dark"] .status-badge.ready { background: rgba(60,200,200,0.16); border-color: rgba(60,200,200,0.30); }
 [data-theme="dark"] .status-badge.downloading { background: rgba(0,188,212,0.1); color: var(--accent-2); border-color: rgba(0,188,212,0.25); }
 
 .status-dot {
