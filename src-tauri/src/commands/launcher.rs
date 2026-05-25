@@ -1342,10 +1342,41 @@ pub async fn launch_game(
     }
     all_libs.extend(version_info.libraries.iter());
 
+    // Library override: when neoforge/forge inherits from vanilla, both
+    // contain libraries like "com.google.code.gson:gson:2.10.1". Adding both
+    // to classpath causes BootstrapLauncher to throw "Duplicate key" because
+    // its UnionFileSystem tries to merge them. Newer entry (from the modded
+    // version JSON) wins — keep only the LAST occurrence per group:artifact.
+    fn lib_key(name: &str) -> String {
+        // "group:artifact:version[:classifier]" -> "group:artifact[:classifier]"
+        let parts: Vec<&str> = name.split(':').collect();
+        match parts.len() {
+            3 => format!("{}:{}", parts[0], parts[1]),
+            4 => format!("{}:{}:{}", parts[0], parts[1], parts[3]),
+            _ => name.to_string(),
+        }
+    }
+    let mut last_index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for (idx, lib) in all_libs.iter().enumerate() {
+        last_index.insert(lib_key(&lib.name), idx);
+    }
+    let kept: std::collections::HashSet<usize> = last_index.values().copied().collect();
+    let dedup_count = all_libs.len() - kept.len();
+    if dedup_count > 0 {
+        log(&format!("[launch] Library dedup: dropped {} duplicate group:artifact entries", dedup_count));
+    }
+    let all_libs: Vec<&Library> = all_libs
+        .into_iter()
+        .enumerate()
+        .filter(|(idx, _)| kept.contains(idx))
+        .map(|(_, lib)| lib)
+        .collect();
+
     let total_libs = all_libs.len();
-    log(&format!("[launch] Total libraries: {}", total_libs));
+    log(&format!("[launch] Total libraries (after dedup): {}", total_libs));
 
     let mut classpath_entries: Vec<String> = Vec::new();
+    let mut classpath_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut skipped = 0usize;
     let mut downloaded = 0usize;
 
@@ -1373,7 +1404,10 @@ pub async fn launch_game(
                 }
                 download_file(&client, &artifact.url, &lib_path).await
                     .map_err(|e| format!("[libs] Failed to download {}: {}", lib.name, e))?;
-                classpath_entries.push(lib_path.to_string_lossy().to_string());
+                let path_str = lib_path.to_string_lossy().to_string();
+                if classpath_seen.insert(path_str.clone()) {
+                    classpath_entries.push(path_str);
+                }
             }
         } else if let Some(ref base_url) = lib.url {
             let parts: Vec<&str> = lib.name.splitn(3, ':').collect();
@@ -1391,7 +1425,10 @@ pub async fn launch_game(
                 }
                 download_file(&client, &url, &lib_path).await
                     .map_err(|e| format!("[libs] Failed to download Fabric lib {}: {}", lib.name, e))?;
-                classpath_entries.push(lib_path.to_string_lossy().to_string());
+                let path_str = lib_path.to_string_lossy().to_string();
+                if classpath_seen.insert(path_str.clone()) {
+                    classpath_entries.push(path_str);
+                }
             } else {
                 log(&format!("[libs] Skipping malformed Fabric lib name: {}", lib.name));
             }
