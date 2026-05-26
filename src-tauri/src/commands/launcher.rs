@@ -807,10 +807,22 @@ async fn install_forge(
     java_path: &str,
     mc_dir: &PathBuf,
     mc_version: &str,
+    pinned_version: Option<&str>,
 ) -> Result<String, String> {
     check_launch_cancelled()?;
-    set_progress("forge", 0.0, 4.0, "Поиск последней версии Forge...");
-    let forge_ver = get_latest_forge_version(client, mc_version).await?;
+    let forge_ver = if let Some(v) = pinned_version {
+        log(&format!("[forge] Using pinned version from manifest: {}", v));
+        // Forge maven uses "<mc>-<loader>" combined name. If pinned looks like
+        // bare loader version (e.g. "47.4.20") prepend mc_version.
+        if v.starts_with(mc_version) {
+            v.to_string()
+        } else {
+            format!("{}-{}", mc_version, v)
+        }
+    } else {
+        set_progress("forge", 0.0, 4.0, "Поиск последней версии Forge...");
+        get_latest_forge_version(client, mc_version).await?
+    };
     log(&format!("[forge] Will install: {}", forge_ver));
 
     let installer_url = format!(
@@ -827,11 +839,17 @@ async fn install_neoforge(
     java_path: &str,
     mc_dir: &PathBuf,
     version_str: &str,
+    pinned_version: Option<&str>,
 ) -> Result<String, String> {
     check_launch_cancelled()?;
-    set_progress("neoforge", 0.0, 4.0, "Поиск последней версии NeoForge...");
 
-    let neo_ver = get_latest_neoforge_version(client, version_str).await?;
+    let neo_ver = if let Some(v) = pinned_version {
+        log(&format!("[neoforge] Using pinned version from manifest: {}", v));
+        v.to_string()
+    } else {
+        set_progress("neoforge", 0.0, 4.0, "Поиск последней версии NeoForge...");
+        get_latest_neoforge_version(client, version_str).await?
+    };
     log(&format!("[neoforge] Will install: {}", neo_ver));
 
     let installer_url = format!(
@@ -1188,6 +1206,7 @@ pub async fn launch_game(
 
     let mut launch_version = version.clone();
     let mut server_ip: Option<String> = None;
+    let mut pinned_loader_version: Option<String> = None;
     if let Some(modpack_name) = mc_dir.file_name().and_then(|n| n.to_str()) {
         if let Some(manifest) = sync_build_files(&client, modpack_name, &mc_dir).await? {
             let loader = manifest.loader.to_lowercase();
@@ -1200,6 +1219,10 @@ pub async fn launch_game(
             server_ip = manifest.server_ip;
             if let Some(ref ip) = server_ip {
                 log(&format!("[build] Server IP set: {}", ip));
+            }
+            if !manifest.loader_version.trim().is_empty() {
+                pinned_loader_version = Some(manifest.loader_version.trim().to_string());
+                log(&format!("[build] Pinned loader version from manifest: {}", manifest.loader_version));
             }
         }
     }
@@ -1215,7 +1238,7 @@ pub async fn launch_game(
                 } else {
                     log(&format!("[forge] Not installed, starting installation for MC {}", mc_ver));
                     ensure_vanilla(&client, &mc_dir, &mc_ver).await?;
-                    install_forge(&client, &java_path, &mc_dir, &mc_ver).await?
+                    install_forge(&client, &java_path, &mc_dir, &mc_ver, pinned_loader_version.as_deref()).await?
                 }
             }
             "neoforge" => {
@@ -1225,7 +1248,7 @@ pub async fn launch_game(
                     log(&format!("[neoforge] Not installed, starting installation for {}", mc_ver));
                     let mc_version = version_str_to_mc(&mc_ver);
                     ensure_vanilla(&client, &mc_dir, &mc_version).await?;
-                    install_neoforge(&client, &java_path, &mc_dir, &mc_ver).await?
+                    install_neoforge(&client, &java_path, &mc_dir, &mc_ver, pinned_loader_version.as_deref()).await?
                 }
             }
             "fabric" => {
