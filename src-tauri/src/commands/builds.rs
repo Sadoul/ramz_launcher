@@ -22,9 +22,14 @@ fn token_preview(token: &str) -> String {
 const BUILD_BRANCH: &str = "main";
 const USER_AGENT: &str = "RamzLauncher-BuildAdmin";
 
-// GitHub Contents API hard limit is 100 MB. We upload files larger than this
-// threshold as release assets (Releases support up to 2 GB per file).
-const LARGE_FILE_THRESHOLD: u64 = 95 * 1024 * 1024;
+// GitHub Contents API tolerates files up to ~50 MB raw, but base64 encoding
+// inflates the body by ~33% and the API starts returning 422
+// "Sorry, the file is too large to be processed" well before the documented
+// 100 MB ceiling. We pre-empt that by routing anything ≥ 25 MB to release
+// assets (which support up to 2 GB per file). Files that still slip through
+// (e.g. odd Contents API behaviour) are caught by the 422 fallback in
+// {@link upload_file_smart}.
+const LARGE_FILE_THRESHOLD: u64 = 25 * 1024 * 1024;
 const STORAGE_RELEASE_TAG: &str = "storage";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -255,6 +260,11 @@ async fn get_github_file(client: &reqwest::Client, token: &str, api_url: &str) -
     })
 }
 
+/// Marker prefix used when the Contents API rejects a file as too large.
+/// `upload_file_smart` checks for this prefix to decide whether to retry the
+/// upload as a release asset.
+const TOO_LARGE_MARKER: &str = "__RAMZ_TOO_LARGE__";
+
 async fn put_github_file_with_client(
     client: &reqwest::Client,
     token: &str,
@@ -291,6 +301,18 @@ async fn put_github_file_with_client(
     if !status.is_success() {
         let body = response.text().await.unwrap_or_default();
         launcher_log(&format!("[builds] PUT {api_url} error body: {body}"));
+
+        // Special-case: Contents API rejects file as too large. Surface a
+        // marker the smart-upload routine can detect to retry via release
+        // assets without bothering the user.
+        if status == reqwest::StatusCode::UNPROCESSABLE_ENTITY
+            && body.to_lowercase().contains("too large")
+        {
+            return Err(format!(
+                "{TOO_LARGE_MARKER}: GitHub Contents API: file too large. Body: {body}"
+            ));
+        }
+
         let hint = if status == reqwest::StatusCode::UNAUTHORIZED {
             "Токен недействителен или истёк."
         } else if status == reqwest::StatusCode::FORBIDDEN {
@@ -506,6 +528,11 @@ async fn upload_as_release_asset(
 
 /// Routes upload to either Contents API (small files) or Releases asset
 /// (files >= LARGE_FILE_THRESHOLD). Returns the public download URL.
+///
+/// If the Contents API rejects a file with HTTP 422 "too large" (which it
+/// can do well below the documented 100 MB limit due to base64 inflation
+/// and undocumented heuristics), this routine transparently retries the
+/// upload via the release-asset path so the caller never sees a failure.
 async fn upload_file_smart(
     client: &reqwest::Client,
     token: &str,
@@ -530,7 +557,8 @@ async fn upload_file_smart(
             return Ok(raw_url(repo, rel_path));
         }
     }
-    put_github_file_with_client(
+
+    let put_result = put_github_file_with_client(
         client,
         token,
         &api,
@@ -538,8 +566,19 @@ async fn upload_file_smart(
         &bytes,
         existing.map(|f| f.sha),
     )
-    .await?;
-    Ok(raw_url(repo, rel_path))
+    .await;
+
+    match put_result {
+        Ok(()) => Ok(raw_url(repo, rel_path)),
+        Err(err) if err.starts_with(TOO_LARGE_MARKER) => {
+            launcher_log(&format!(
+                "[builds] {} ({} bytes) rejected by Contents API as too large; falling back to release asset",
+                rel_path, size
+            ));
+            upload_as_release_asset(client, token, repo, rel_path, bytes).await
+        }
+        Err(err) => Err(err),
+    }
 }
 
 fn default_manifest(build: &str) -> BuildManifest {

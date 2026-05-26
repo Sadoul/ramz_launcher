@@ -68,8 +68,13 @@ Write-Host "[4/4] Публикация релиза $TAG на GitHub..." -Foregr
 
 $staged = git status --porcelain
 if ($staged) {
+    # Count existing "Коммит N" messages and increment to keep numbering monotone.
+    $existing = git log --oneline | Select-String -Pattern '^\S+\s+Коммит\s+\d+\s*$'
+    $nextNum = $existing.Count + 1
+    $msg = "Коммит $nextNum"
+    Write-Host "  -> commit message: $msg" -ForegroundColor DarkGray
     git add -A
-    git commit -m "Коммит 10"
+    git commit -m $msg
 }
 
 git tag $TAG
