@@ -140,6 +140,13 @@ pub struct BuildManifest {
     /// If empty, the launcher derives the URL from the official maven layout.
     #[serde(default)]
     pub loader_installer_url: Option<String>,
+    /// Optional override: full URL to a *prebuilt* loader pack (zip). When
+    /// set, the launcher unpacks `versions/` and `libraries/` from the zip
+    /// directly into the modpack dir and SKIPS running the installer entirely.
+    /// Saves users whose ISP blocks `maven.neoforged.net` / `libraries.minecraft.net`
+    /// during the installer's library-fetching phase.
+    #[serde(default)]
+    pub loader_prebuilt_url: Option<String>,
     #[serde(default)]
     pub mods: Vec<BuildFileEntry>,
     #[serde(default)]
@@ -685,6 +692,93 @@ fn javaw_path(java_path: &str) -> String {
 }
 
 
+/// Download a prebuilt loader pack (zip containing `versions/` and `libraries/`)
+/// and extract it into the modpack dir, completely bypassing the official
+/// installer. This is the escape hatch for users whose ISP blocks
+/// `maven.neoforged.net` / `libraries.minecraft.net`.
+async fn unpack_prebuilt_loader(
+    client: &reqwest::Client,
+    mc_dir: &PathBuf,
+    url: &str,
+    loader: &str,
+) -> Result<(), String> {
+    check_launch_cancelled()?;
+    set_progress(loader, 1.0, 4.0, "Скачивание готовой сборки лоадера...");
+    log(&format!("[{}] Prebuilt pack URL: {}", loader, url));
+
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("[{}] prebuilt download failed: {}", loader, e))?;
+    if !resp.status().is_success() {
+        return Err(format!(
+            "[{}] prebuilt download HTTP {}: {}",
+            loader,
+            resp.status(),
+            url
+        ));
+    }
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| format!("[{}] prebuilt read body failed: {}", loader, e))?;
+    log(&format!(
+        "[{}] Prebuilt pack downloaded: {} bytes",
+        loader,
+        bytes.len()
+    ));
+
+    check_launch_cancelled()?;
+    set_progress(loader, 2.0, 4.0, "Распаковка лоадера...");
+
+    let cursor = std::io::Cursor::new(&bytes);
+    let mut archive = zip::ZipArchive::new(cursor)
+        .map_err(|e| format!("[{}] prebuilt zip open failed: {}", loader, e))?;
+
+    let total = archive.len();
+    for i in 0..total {
+        if i % 25 == 0 {
+            check_launch_cancelled()?;
+        }
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| format!("[{}] prebuilt zip read failed: {}", loader, e))?;
+        let name = entry.name().to_string();
+        // Only allow files under versions/ or libraries/ (defense in depth
+        // against zip-slip and stray entries).
+        if !(name.starts_with("versions/") || name.starts_with("libraries/")) {
+            continue;
+        }
+        if name.contains("..") {
+            log(&format!("[{}] Skipping suspicious entry: {}", loader, name));
+            continue;
+        }
+        let out_path = mc_dir.join(&name);
+        if name.ends_with('/') {
+            fs::create_dir_all(&out_path).ok();
+            continue;
+        }
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent).ok();
+        }
+        let mut buf = Vec::new();
+        std::io::Read::read_to_end(&mut entry, &mut buf)
+            .map_err(|e| format!("[{}] prebuilt extract failed: {}", loader, e))?;
+        fs::write(&out_path, &buf)
+            .map_err(|e| format!("[{}] prebuilt write failed for {}: {}", loader, name, e))?;
+    }
+
+    set_progress(loader, 3.0, 4.0, "Лоадер распакован");
+    log(&format!(
+        "[{}] Prebuilt pack extracted into {}",
+        loader,
+        mc_dir.display()
+    ));
+    Ok(())
+}
+
+
 async fn run_modded_installer(
     client: &reqwest::Client,
     java_path: &str,
@@ -1223,6 +1317,7 @@ pub async fn launch_game(
     let mut server_ip: Option<String> = None;
     let mut pinned_loader_version: Option<String> = None;
     let mut pinned_installer_url: Option<String> = None;
+    let mut pinned_prebuilt_url: Option<String> = None;
     if let Some(modpack_name) = mc_dir.file_name().and_then(|n| n.to_str()) {
         if let Some(manifest) = sync_build_files(&client, modpack_name, &mc_dir).await? {
             let loader = manifest.loader.to_lowercase();
@@ -1247,6 +1342,13 @@ pub async fn launch_game(
                     log(&format!("[build] Pinned installer URL from manifest: {}", trimmed));
                 }
             }
+            if let Some(url) = manifest.loader_prebuilt_url.as_ref() {
+                let trimmed = url.trim();
+                if !trimmed.is_empty() {
+                    pinned_prebuilt_url = Some(trimmed.to_string());
+                    log(&format!("[build] Pinned prebuilt loader pack URL from manifest: {}", trimmed));
+                }
+            }
         }
     }
 
@@ -1258,6 +1360,13 @@ pub async fn launch_game(
             "forge" => {
                 if let Some(existing) = find_installed_forge(&mc_dir, &mc_ver, "forge") {
                     existing
+                } else if let Some(url) = pinned_prebuilt_url.as_deref() {
+                    log(&format!("[forge] Not installed; using prebuilt loader pack: {}", url));
+                    ensure_vanilla(&client, &mc_dir, &mc_ver).await?;
+                    unpack_prebuilt_loader(&client, &mc_dir, url, "forge").await?;
+                    find_installed_forge(&mc_dir, &mc_ver, "forge").ok_or_else(|| {
+                        "[forge] Prebuilt pack распакован, но версия не найдена в versions/".to_string()
+                    })?
                 } else {
                     log(&format!("[forge] Not installed, starting installation for MC {}", mc_ver));
                     ensure_vanilla(&client, &mc_dir, &mc_ver).await?;
@@ -1267,6 +1376,14 @@ pub async fn launch_game(
             "neoforge" => {
                 if let Some(existing) = find_installed_forge(&mc_dir, &mc_ver, "neoforge") {
                     existing
+                } else if let Some(url) = pinned_prebuilt_url.as_deref() {
+                    log(&format!("[neoforge] Not installed; using prebuilt loader pack: {}", url));
+                    let mc_version = version_str_to_mc(&mc_ver);
+                    ensure_vanilla(&client, &mc_dir, &mc_version).await?;
+                    unpack_prebuilt_loader(&client, &mc_dir, url, "neoforge").await?;
+                    find_installed_forge(&mc_dir, &mc_ver, "neoforge").ok_or_else(|| {
+                        "[neoforge] Prebuilt pack распакован, но версия не найдена в versions/".to_string()
+                    })?
                 } else {
                     log(&format!("[neoforge] Not installed, starting installation for {}", mc_ver));
                     let mc_version = version_str_to_mc(&mc_ver);

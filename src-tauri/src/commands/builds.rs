@@ -43,6 +43,10 @@ pub struct BuildManifest {
     /// the user's network can't reach the official Maven (NeoForged / Forge).
     #[serde(default)]
     pub loader_installer_url: Option<String>,
+    /// Optional override: full URL to a *prebuilt* loader pack (zip).
+    /// See `launcher::BuildManifest::loader_prebuilt_url` for semantics.
+    #[serde(default)]
+    pub loader_prebuilt_url: Option<String>,
     #[serde(default)]
     pub mods: Vec<BuildFileEntry>,
     #[serde(default)]
@@ -592,6 +596,7 @@ fn default_manifest(build: &str) -> BuildManifest {
         loader: "fabric".to_string(),
         loader_version: String::new(),
         loader_installer_url: None,
+        loader_prebuilt_url: None,
         mods: vec![],
         server_ip: None,
         discord_url: None,
