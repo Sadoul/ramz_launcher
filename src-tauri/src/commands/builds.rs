@@ -39,6 +39,10 @@ pub struct BuildManifest {
     pub loader: String,
     #[serde(default)]
     pub loader_version: String,
+    /// Optional override: full URL to the loader installer JAR. Useful when
+    /// the user's network can't reach the official Maven (NeoForged / Forge).
+    #[serde(default)]
+    pub loader_installer_url: Option<String>,
     #[serde(default)]
     pub mods: Vec<BuildFileEntry>,
     #[serde(default)]
@@ -587,6 +591,7 @@ fn default_manifest(build: &str) -> BuildManifest {
         minecraft_version: "1.20.1".to_string(),
         loader: "fabric".to_string(),
         loader_version: String::new(),
+        loader_installer_url: None,
         mods: vec![],
         server_ip: None,
         discord_url: None,
