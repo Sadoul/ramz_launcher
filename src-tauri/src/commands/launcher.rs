@@ -1368,35 +1368,62 @@ pub async fn launch_game(
             "forge" => {
                 if let Some(existing) = find_installed_forge(&mc_dir, &mc_ver, "forge") {
                     existing
-                } else if let Some(url) = pinned_prebuilt_url.as_deref() {
-                    log(&format!("[forge] Not installed; using prebuilt loader pack: {}", url));
-                    ensure_vanilla(&client, &mc_dir, &mc_ver).await?;
-                    unpack_prebuilt_loader(&client, &mc_dir, url, "forge").await?;
-                    find_installed_forge(&mc_dir, &mc_ver, "forge").ok_or_else(|| {
-                        "[forge] Prebuilt pack распакован, но версия не найдена в versions/".to_string()
-                    })?
                 } else {
                     log(&format!("[forge] Not installed, starting installation for MC {}", mc_ver));
                     ensure_vanilla(&client, &mc_dir, &mc_ver).await?;
-                    install_forge(&client, &java_path, &mc_dir, &mc_ver, pinned_loader_version.as_deref(), pinned_installer_url.as_deref()).await?
+                    match install_forge(&client, &java_path, &mc_dir, &mc_ver, pinned_loader_version.as_deref(), pinned_installer_url.as_deref()).await {
+                        Ok(v) => v,
+                        Err(installer_err) => {
+                            // Don't fallback if user cancelled the launch.
+                            if installer_err.contains("отменён") {
+                                return Err(installer_err);
+                            }
+                            if let Some(url) = pinned_prebuilt_url.as_deref() {
+                                log(&format!(
+                                    "[forge] Installer failed ({}). Falling back to prebuilt loader pack: {}",
+                                    installer_err, url
+                                ));
+                                set_progress("forge", 0.0, 4.0, "Installer не сработал, пробуем готовую сборку...");
+                                unpack_prebuilt_loader(&client, &mc_dir, url, "forge").await?;
+                                find_installed_forge(&mc_dir, &mc_ver, "forge").ok_or_else(|| {
+                                    "[forge] Prebuilt pack распакован, но версия не найдена в versions/".to_string()
+                                })?
+                            } else {
+                                return Err(installer_err);
+                            }
+                        }
+                    }
                 }
             }
             "neoforge" => {
                 if let Some(existing) = find_installed_forge(&mc_dir, &mc_ver, "neoforge") {
                     existing
-                } else if let Some(url) = pinned_prebuilt_url.as_deref() {
-                    log(&format!("[neoforge] Not installed; using prebuilt loader pack: {}", url));
-                    let mc_version = version_str_to_mc(&mc_ver);
-                    ensure_vanilla(&client, &mc_dir, &mc_version).await?;
-                    unpack_prebuilt_loader(&client, &mc_dir, url, "neoforge").await?;
-                    find_installed_forge(&mc_dir, &mc_ver, "neoforge").ok_or_else(|| {
-                        "[neoforge] Prebuilt pack распакован, но версия не найдена в versions/".to_string()
-                    })?
                 } else {
                     log(&format!("[neoforge] Not installed, starting installation for {}", mc_ver));
                     let mc_version = version_str_to_mc(&mc_ver);
                     ensure_vanilla(&client, &mc_dir, &mc_version).await?;
-                    install_neoforge(&client, &java_path, &mc_dir, &mc_ver, pinned_loader_version.as_deref(), pinned_installer_url.as_deref()).await?
+                    match install_neoforge(&client, &java_path, &mc_dir, &mc_ver, pinned_loader_version.as_deref(), pinned_installer_url.as_deref()).await {
+                        Ok(v) => v,
+                        Err(installer_err) => {
+                            // Don't fallback if user cancelled the launch.
+                            if installer_err.contains("отменён") {
+                                return Err(installer_err);
+                            }
+                            if let Some(url) = pinned_prebuilt_url.as_deref() {
+                                log(&format!(
+                                    "[neoforge] Installer failed ({}). Falling back to prebuilt loader pack: {}",
+                                    installer_err, url
+                                ));
+                                set_progress("neoforge", 0.0, 4.0, "Installer не сработал, пробуем готовую сборку...");
+                                unpack_prebuilt_loader(&client, &mc_dir, url, "neoforge").await?;
+                                find_installed_forge(&mc_dir, &mc_ver, "neoforge").ok_or_else(|| {
+                                    "[neoforge] Prebuilt pack распакован, но версия не найдена в versions/".to_string()
+                                })?
+                            } else {
+                                return Err(installer_err);
+                            }
+                        }
+                    }
                 }
             }
             "fabric" => {
