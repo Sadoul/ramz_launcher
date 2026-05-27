@@ -248,15 +248,29 @@ async fn download_file_inner(
         fs::create_dir_all(parent).map_err(|e| format!("mkdir failed for {}: {}", parent.display(), e))?;
     }
 
-    log(&format!("[download] Fetching: {}", url));
+    // raw.githubusercontent.com is fronted by Fastly which can serve a stale
+    // jar for several minutes after a manifest update. When we are forcibly
+    // re-downloading (sha mismatch / first install), append a cache-buster
+    // and tell the CDN we don't want a cached copy.
+    let final_url: String = if force && !url.contains('?') {
+        format!("{}?t={}", url, chrono::Utc::now().timestamp_millis())
+    } else if force {
+        format!("{}&t={}", url, chrono::Utc::now().timestamp_millis())
+    } else {
+        url.to_string()
+    };
+
+    log(&format!("[download] Fetching: {}", final_url));
     let response = client
-        .get(url)
+        .get(&final_url)
+        .header(reqwest::header::CACHE_CONTROL, "no-cache")
+        .header(reqwest::header::PRAGMA, "no-cache")
         .send()
         .await
-        .map_err(|e| format!("[download] Request failed for {}: {}", url, e))?;
+        .map_err(|e| format!("[download] Request failed for {}: {}", final_url, e))?;
 
     if !response.status().is_success() {
-        return Err(format!("[download] HTTP {} for URL: {}", response.status(), url));
+        return Err(format!("[download] HTTP {} for URL: {}", response.status(), final_url));
     }
 
     if LAUNCH_CANCELLED.load(Ordering::SeqCst) {
@@ -395,7 +409,15 @@ async fn sync_build_files(client: &reqwest::Client, modpack_name: &str, mc_dir: 
                 // Never overwrite user-owned files that already exist.
                 false
             } else {
-                file_sha1(&path).map(|sha| sha != entry.sha1).unwrap_or(true)
+                let local_sha = file_sha1(&path).unwrap_or_default();
+                let mismatch = local_sha != entry.sha1;
+                if mismatch {
+                    log(&format!(
+                        "[build] {} sha mismatch (local={}, manifest={}) — will redownload",
+                        entry.path, local_sha, entry.sha1
+                    ));
+                }
+                mismatch
             }
         } else {
             // Always download when missing (first-time install of options.txt etc.)
@@ -408,6 +430,20 @@ async fn sync_build_files(client: &reqwest::Client, modpack_name: &str, mc_dir: 
             // missing OR (for non-user-owned) sha mismatched. force just
             // bypasses the "already exists" early return.
             download_file_force(client, &entry.url, &path).await?;
+
+            // After redownload, verify that the freshly downloaded file
+            // actually matches the manifest sha. If a CDN returned a stale
+            // copy (which happens within a few minutes of an admin update),
+            // we'd otherwise silently keep the old jar.
+            if !user_owned {
+                let new_sha = file_sha1(&path).unwrap_or_default();
+                if new_sha != entry.sha1 {
+                    log(&format!(
+                        "[build] {} downloaded but sha still mismatches (got={}, expected={}). The CDN likely served a stale copy; client will retry next launch.",
+                        entry.path, new_sha, entry.sha1
+                    ));
+                }
+            }
         } else if user_owned {
             log(&format!("[build] Keeping user-owned file: {}", entry.path));
         }
