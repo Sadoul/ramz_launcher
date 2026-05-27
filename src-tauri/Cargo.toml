@@ -1,6 +1,6 @@
 [package]
 name = "ramz-launcher"
-version = "2.70.53"
+version = "2.70.54"
 description = "Ramz Minecraft Launcher"
 authors = ["Sadoul"]
 edition = "2021"

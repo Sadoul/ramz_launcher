@@ -744,7 +744,11 @@ async fn unpack_prebuilt_loader(
         let mut entry = archive
             .by_index(i)
             .map_err(|e| format!("[{}] prebuilt zip read failed: {}", loader, e))?;
-        let name = entry.name().to_string();
+        let raw_name = entry.name().to_string();
+        // Some zip producers (notably .NET's ZipFile.CreateFromDirectory on
+        // Windows) write back-slashes into entry names; normalise so our
+        // prefix checks and path joins behave consistently across producers.
+        let name = raw_name.replace('\\', "/");
         // Only allow files under versions/ or libraries/ (defense in depth
         // against zip-slip and stray entries).
         if !(name.starts_with("versions/") || name.starts_with("libraries/")) {
@@ -1072,6 +1076,8 @@ async fn ensure_java_for_mc(java_path: &str, mc_version: &str) -> Result<String,
         .and_then(|r| r["binary"]["package"]["link"].as_str())
         .ok_or("Не удалось найти ссылку на Java 21")?
         .to_string();
+    log(&format!("[java21] Download URL: {}", download_url));
+    set_progress("java", 0.0, 1.0, "Скачивание Java 21 (~50 МБ)...");
     let bytes = client
         .get(&download_url)
         .send()
@@ -1080,6 +1086,8 @@ async fn ensure_java_for_mc(java_path: &str, mc_version: &str) -> Result<String,
         .bytes()
         .await
         .map_err(|e| format!("[java21] read body failed: {}", e))?;
+    log(&format!("[java21] Downloaded {} bytes", bytes.len()));
+    set_progress("java", 0.5, 1.0, "Распаковка Java 21...");
 
     if java21_dir.exists() {
         let _ = fs::remove_dir_all(&java21_dir);
