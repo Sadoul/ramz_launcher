@@ -296,9 +296,70 @@ fn build_repo_for_modpack(name: &str) -> Option<&'static str> {
 }
 
 async fn fetch_build_manifest(client: &reqwest::Client, repo: &str) -> Result<(BuildManifest, String), String> {
-    let url = format!("https://raw.githubusercontent.com/{}/main/manifest.json?t={}", repo, chrono::Utc::now().timestamp_millis());
-    log(&format!("[build] Fetch manifest: {}", url));
-    let response = client.get(&url).send().await.map_err(|e| format!("[build] Manifest request failed: {}", e))?;
+    // ── Стратегия #1: GitHub Contents API (без CDN-кэша) ────────────────────
+    //
+    // Корень бага «у игроков сборка не обновляется при апдейте мода с тем же
+    // именем»: raw.githubusercontent.com фронтит Fastly CDN, который кэширует
+    // по URL-path (игнорируя query-string). Параметр ?t=<timestamp> бесполезен —
+    // CDN возвращает старый manifest.json несколько минут после апдейта.
+    //
+    // api.github.com НЕ фронтится Fastly — каждый запрос идёт к GitHub-серверу
+    // напрямую. Manifest всегда свежий.
+    //
+    // Лимит: 60/час для unauth, нам достаточно (1 fetch на launch).
+    let api_url = format!(
+        "https://api.github.com/repos/{}/contents/manifest.json?ref=main",
+        repo
+    );
+    log(&format!("[build] Fetch manifest via Contents API: {}", api_url));
+    let api_resp = client
+        .get(&api_url)
+        .header(reqwest::header::USER_AGENT, "ramz_launcher")
+        .header(reqwest::header::ACCEPT, "application/vnd.github.raw")
+        .header(reqwest::header::CACHE_CONTROL, "no-cache")
+        .header(reqwest::header::PRAGMA, "no-cache")
+        .send()
+        .await;
+
+    if let Ok(response) = api_resp {
+        if response.status().is_success() {
+            if let Ok(raw) = response.text().await {
+                if let Ok(manifest) = serde_json::from_str::<BuildManifest>(&raw) {
+                    log(&format!(
+                        "[build] Manifest получен через Contents API ({} байт)",
+                        raw.len()
+                    ));
+                    return Ok((manifest, raw));
+                } else {
+                    log("[build] Contents API вернул не-JSON; пробую fallback на raw URL");
+                }
+            }
+        } else {
+            log(&format!(
+                "[build] Contents API HTTP {} (rate-limit/auth) — fallback на raw URL",
+                response.status()
+            ));
+        }
+    } else {
+        log("[build] Contents API недоступен (сеть) — fallback на raw URL");
+    }
+
+    // ── Фолбэк: raw.githubusercontent.com с no-cache хедерами ───────────────
+    // Это резервный путь на случай rate-limit (60/час). Может вернуть старую
+    // версию из CDN, но лучше иметь хоть что-то, чем падать.
+    let url = format!(
+        "https://raw.githubusercontent.com/{}/main/manifest.json?t={}",
+        repo,
+        chrono::Utc::now().timestamp_millis()
+    );
+    log(&format!("[build] Fetch manifest (fallback raw): {}", url));
+    let response = client
+        .get(&url)
+        .header(reqwest::header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+        .header(reqwest::header::PRAGMA, "no-cache")
+        .send()
+        .await
+        .map_err(|e| format!("[build] Manifest request failed: {}", e))?;
     if !response.status().is_success() {
         return Err(format!("[build] Manifest HTTP {} for {}", response.status(), repo));
     }

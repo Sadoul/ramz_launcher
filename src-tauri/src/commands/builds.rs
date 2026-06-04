@@ -196,6 +196,14 @@ fn raw_url(repo: &str, path: &str) -> String {
     format!("https://raw.githubusercontent.com/{repo}/main/{path}")
 }
 
+/// Content-addressed raw-URL: вместо ветки {@code main} использует конкретную
+/// commit SHA. Каждый upload даёт новый commit-SHA → новую уникальную URL,
+/// поэтому Fastly CDN не может вернуть устаревший файл (другой URL = другой
+/// cache key). Используется для всех mod-файлов после успешного PUT.
+fn raw_url_with_ref(repo: &str, git_ref: &str, path: &str) -> String {
+    format!("https://raw.githubusercontent.com/{repo}/{git_ref}/{path}")
+}
+
 fn github_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent(USER_AGENT)
@@ -273,6 +281,25 @@ async fn get_github_file(client: &reqwest::Client, token: &str, api_url: &str) -
 /// upload as a release asset.
 const TOO_LARGE_MARKER: &str = "__RAMZ_TOO_LARGE__";
 
+/// Минимальная структура для парсинга ответа на PUT в Contents API.
+/// Из всего ответа нам нужен только commit.sha — мы используем его, чтобы
+/// сформировать content-addressed raw-URL (см. {@link raw_url_with_ref}),
+/// который обходит CDN-кэш Fastly: каждый новый upload даёт новую commit-sha,
+/// а значит новую уникальную URL — Fastly не вернёт старый файл.
+#[derive(Debug, Deserialize)]
+struct GitHubPutResponse {
+    #[serde(default)]
+    commit: Option<GitHubCommitInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubCommitInfo {
+    sha: String,
+}
+
+/// PUT файла в GitHub Contents API.
+/// Возвращает commit SHA из ответа GitHub — используется для построения
+/// content-addressed raw-URL (обход Fastly CDN).
 async fn put_github_file_with_client(
     client: &reqwest::Client,
     token: &str,
@@ -280,7 +307,7 @@ async fn put_github_file_with_client(
     message: &str,
     content: &[u8],
     old_sha: Option<String>,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let mut payload = serde_json::json!({
         "message": message,
         "content": general_purpose::STANDARD.encode(content),
@@ -340,7 +367,23 @@ async fn put_github_file_with_client(
         };
         return Err(format!("GitHub отклонил commit: {status}. {hint}\n\nПолный ответ: {body}"));
     }
-    Ok(())
+
+    // Успешный ответ — парсим body, чтобы извлечь commit.sha.
+    let body = response.text().await.unwrap_or_default();
+    let commit_sha = serde_json::from_str::<GitHubPutResponse>(&body)
+        .ok()
+        .and_then(|r| r.commit)
+        .map(|c| c.sha)
+        .unwrap_or_default();
+    if commit_sha.is_empty() {
+        launcher_log(&format!(
+            "[builds] PUT {api_url} success, но commit.sha не извлечён (body: {})",
+            &body.chars().take(200).collect::<String>()
+        ));
+    } else {
+        launcher_log(&format!("[builds] PUT {api_url} OK, commit sha = {commit_sha}"));
+    }
+    Ok(commit_sha)
 }
 
 // ---- Release-asset upload (for files > 100 MB) -----------------------------
@@ -562,6 +605,16 @@ async fn upload_file_smart(
     let git_sha = git_blob_sha1(&bytes);
     if let Some(ref ex) = existing {
         if ex.sha == git_sha {
+            // Контент в GitHub УЖЕ совпадает с тем, что мы хотим загрузить.
+            // Запрашиваем commit SHA последнего изменения этого файла, чтобы
+            // вернуть content-addressed URL вместо .../main/... — иначе
+            // следующий апдейт того же файла нарвётся на CDN-cache.
+            let commit_sha = latest_commit_sha_for_path(client, token, repo, rel_path)
+                .await
+                .unwrap_or_default();
+            if !commit_sha.is_empty() {
+                return Ok(raw_url_with_ref(repo, &commit_sha, rel_path));
+            }
             return Ok(raw_url(repo, rel_path));
         }
     }
@@ -577,7 +630,24 @@ async fn upload_file_smart(
     .await;
 
     match put_result {
-        Ok(()) => Ok(raw_url(repo, rel_path)),
+        Ok(commit_sha) => {
+            // КРИТИЧНО: используем content-addressed URL с commit SHA, чтобы
+            // обойти Fastly CDN-кэш raw.githubusercontent.com. Когда админ
+            // апдейтит мод с тем же именем — каждый upload даёт новый commit
+            // SHA → новую уникальную URL → клиент гарантированно получает
+            // свежий файл (а не залежавшийся в CDN старый).
+            if !commit_sha.is_empty() {
+                Ok(raw_url_with_ref(repo, &commit_sha, rel_path))
+            } else {
+                // Фолбэк, если ответ GitHub не содержал commit.sha (не должно
+                // случаться, но лучше залогировать и не падать).
+                launcher_log(&format!(
+                    "[builds] WARN: {} uploaded но commit sha не вернулся — URL может быть закэширован CDN",
+                    rel_path
+                ));
+                Ok(raw_url(repo, rel_path))
+            }
+        }
         Err(err) if err.starts_with(TOO_LARGE_MARKER) => {
             launcher_log(&format!(
                 "[builds] {} ({} bytes) rejected by Contents API as too large; falling back to release asset",
@@ -587,6 +657,35 @@ async fn upload_file_smart(
         }
         Err(err) => Err(err),
     }
+}
+
+/// Запрашивает commit SHA последнего изменения файла {@code rel_path} в репо.
+/// Используется только когда мы не вызывали PUT (контент уже совпадает) — нам
+/// нужна commit SHA, чтобы построить content-addressed URL для манифеста.
+async fn latest_commit_sha_for_path(
+    client: &reqwest::Client,
+    token: &str,
+    repo: &str,
+    rel_path: &str,
+) -> Option<String> {
+    let url = format!(
+        "https://api.github.com/repos/{}/commits?path={}&per_page=1&sha={}",
+        repo, rel_path, BUILD_BRANCH
+    );
+    let response = client
+        .get(&url)
+        .bearer_auth(token)
+        .send()
+        .await
+        .ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    let arr: Vec<serde_json::Value> = response.json().await.ok()?;
+    arr.first()
+        .and_then(|c| c.get("sha"))
+        .and_then(|s| s.as_str())
+        .map(|s| s.to_string())
 }
 
 fn default_manifest(build: &str) -> BuildManifest {
