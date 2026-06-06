@@ -212,7 +212,9 @@ pub async fn check_launcher_update() -> Result<UpdateInfo, String> {
         launcher_log(&format!("[updater] Asset: {} ({} bytes)", name, size));
 
         let n = name.to_lowercase();
-        if (n == "project-doomsday-launcher.exe" || n == "ramz-launcher.exe")
+        if (n == "pd-launcher-core.exe"
+            || n == "project-doomsday-launcher.exe"
+            || n == "ramz-launcher.exe")
             && !n.contains("debug")
         {
             installer_url = url;

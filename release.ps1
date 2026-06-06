@@ -44,7 +44,7 @@ Write-Host "[2/4] Сборка Tauri (без NSIS — только portable .exe
 npx tauri build --no-bundle
 if ($LASTEXITCODE -ne 0) { throw "Ошибка сборки Tauri" }
 
-$mainExe = "src-tauri\target\release\project-doomsday-launcher.exe"
+$mainExe = "src-tauri\target\release\pd-launcher-core.exe"
 if (-not (Test-Path $mainExe)) { throw "Main launcher exe не найден: $mainExe" }
 Write-Host "  -> Main: $mainExe" -ForegroundColor DarkGray
 

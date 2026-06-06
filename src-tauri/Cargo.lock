@@ -2571,6 +2571,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "pd-launcher-core"
+version = "2.70.61"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "dirs 5.0.1",
+ "futures-util",
+ "hex",
+ "open",
+ "raw-window-handle",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha1",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-http",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tokio",
+ "urlencoding",
+ "uuid",
+ "windows 0.58.0",
+ "winreg 0.52.0",
+ "zip",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2907,36 +2937,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "project-doomsday-launcher"
-version = "2.70.60"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "dirs 5.0.1",
- "futures-util",
- "hex",
- "open",
- "raw-window-handle",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha1",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-http",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tokio",
- "urlencoding",
- "uuid",
- "windows 0.58.0",
- "winreg 0.52.0",
- "zip",
 ]
 
 [[package]]

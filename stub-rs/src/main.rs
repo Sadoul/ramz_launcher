@@ -23,9 +23,10 @@ struct GitHubAsset {
 const GITHUB_REPO: &str = "Sadoul/ramz_launcher";
 #[allow(dead_code)]
 const STUB_ASSET_NAME: &str = "Project-Doomsday-Launcher.exe";
-const LAUNCHER_EXE: &str = "project-doomsday-launcher.exe";
-// Старое имя бинарника — для миграции пользователей со старых установок.
+const LAUNCHER_EXE: &str = "pd-launcher-core.exe";
+// Старые имена бинарника — для миграции пользователей со старых установок.
 const LEGACY_LAUNCHER_EXE: &str = "ramz-launcher.exe";
+const LEGACY_LAUNCHER_EXE_2: &str = "project-doomsday-launcher.exe";
 const LAUNCHER_PRODUCT_NAME: &str = "Project Doomsday Launcher";
 const REG_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Project Doomsday Launcher";
 const STUB_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -78,7 +79,9 @@ fn main() {
     log("Launcher not installed — looking for main launcher .exe in release assets");
     let main_asset = release.assets.iter().find(|a| {
         let n = a.name.to_lowercase();
-        n == LAUNCHER_EXE.to_lowercase() || n == LEGACY_LAUNCHER_EXE.to_lowercase()
+        n == LAUNCHER_EXE.to_lowercase()
+            || n == LEGACY_LAUNCHER_EXE.to_lowercase()
+            || n == LEGACY_LAUNCHER_EXE_2.to_lowercase()
     });
 
     if let Some(asset) = main_asset {
@@ -166,12 +169,14 @@ fn find_launcher() -> Option<PathBuf> {
         }
     }
 
+    let all_exes = [LAUNCHER_EXE, LEGACY_LAUNCHER_EXE, LEGACY_LAUNCHER_EXE_2];
+
     // 2. Registry (старая установка через NSIS, для миграции).
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     if let Ok(key) = hkcu.open_subkey(REG_KEY) {
         if let Ok(raw) = key.get_value::<String, _>("InstallLocation") {
             let dir = raw.trim_matches('"').trim_end_matches('\\');
-            for exe in &[LAUNCHER_EXE, LEGACY_LAUNCHER_EXE] {
+            for exe in &all_exes {
                 let path = PathBuf::from(dir).join(exe);
                 log(&format!("Registry InstallLocation check: {:?}", path));
                 if path.exists() {
@@ -184,7 +189,7 @@ fn find_launcher() -> Option<PathBuf> {
     // 3. Legacy install path (старое имя продукта "Ramz Launcher" + старый бинарь).
     if let Some(ref l) = local {
         for product in &[LAUNCHER_PRODUCT_NAME, "Ramz Launcher"] {
-            for exe in &[LAUNCHER_EXE, LEGACY_LAUNCHER_EXE] {
+            for exe in &all_exes {
                 let path = PathBuf::from(l)
                     .join("Programs")
                     .join(product)
@@ -210,7 +215,7 @@ fn launch_if_installed() {
 }
 
 fn close_running_launcher() {
-    for exe in &[LAUNCHER_EXE, LEGACY_LAUNCHER_EXE] {
+    for exe in &[LAUNCHER_EXE, LEGACY_LAUNCHER_EXE, LEGACY_LAUNCHER_EXE_2] {
         let _ = Command::new("taskkill")
             .args(["/IM", exe, "/F", "/T"])
             .creation_flags(CREATE_NO_WINDOW)

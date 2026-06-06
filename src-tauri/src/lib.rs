@@ -35,7 +35,7 @@ fn close_existing_launcher_processes() {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     let current_pid = std::process::id().to_string();
     let script = format!(
-        "Get-Process project-doomsday-launcher,ramz-launcher -ErrorAction SilentlyContinue | Where-Object {{ $_.Id -ne {} }} | Stop-Process -Force",
+        "Get-Process pd-launcher-core,project-doomsday-launcher,ramz-launcher -ErrorAction SilentlyContinue | Where-Object {{ $_.Id -ne {} }} | Stop-Process -Force",
         current_pid
     );
     let _ = std::process::Command::new("powershell.exe")
