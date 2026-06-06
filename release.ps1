@@ -40,27 +40,22 @@ npx @tauri-apps/cli icon images/icons/logo_square.png
 if ($LASTEXITCODE -ne 0) { throw "Ошибка генерации иконок" }
 
 Write-Host ""
-Write-Host "[2/4] Сборка Tauri (NSIS installer)..." -ForegroundColor Green
-npx tauri build --bundles nsis
+Write-Host "[2/4] Сборка Tauri (без NSIS — только portable .exe)..." -ForegroundColor Green
+npx tauri build --no-bundle
 if ($LASTEXITCODE -ne 0) { throw "Ошибка сборки Tauri" }
 
-$nsisFiles = Get-ChildItem "src-tauri\target\release\bundle\nsis\*.exe" -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like "*$VERSION*" }
-if (-not $nsisFiles) {
-    $nsisFiles = Get-ChildItem "src-tauri\target\release\bundle\nsis\*.exe" -ErrorAction SilentlyContinue |
-        Sort-Object LastWriteTime -Descending
-}
-if (-not $nsisFiles) { throw "NSIS exe не найден" }
-Write-Host "  -> Installer: $($nsisFiles[0].Name)" -ForegroundColor DarkGray
+$mainExe = "src-tauri\target\release\project-doomsday-launcher.exe"
+if (-not (Test-Path $mainExe)) { throw "Main launcher exe не найден: $mainExe" }
+Write-Host "  -> Main: $mainExe" -ForegroundColor DarkGray
 
 Write-Host ""
-Write-Host "[3/4] Сборка Ramz-Launcher.exe (stub)..." -ForegroundColor Green
+Write-Host "[3/4] Сборка Project-Doomsday-Launcher.exe (stub)..." -ForegroundColor Green
 Push-Location stub-rs
 cargo build --release
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "Ошибка сборки stub" }
 Pop-Location
 
-$stubExe = "stub-rs\target\release\Ramz-Launcher.exe"
+$stubExe = "stub-rs\target\release\Project-Doomsday-Launcher.exe"
 if (-not (Test-Path $stubExe)) { throw "Stub exe не найден: $stubExe" }
 
 Write-Host ""
@@ -83,7 +78,12 @@ if ($LASTEXITCODE -ne 0) { throw "Ошибка git push (main)" }
 git push origin "refs/tags/$TAG"
 if ($LASTEXITCODE -ne 0) { throw "Ошибка git push (tag $TAG)" }
 
-$releaseFiles = @($nsisFiles[0].FullName, (Resolve-Path $stubExe).Path)
+# NSIS-инсталлятор в релиз НЕ загружаем. Только main launcher .exe (его
+# скачивает updater для апдейтов и stub для первой установки) + stub.exe.
+$releaseFiles = @(
+    (Resolve-Path $mainExe).Path,
+    (Resolve-Path $stubExe).Path
+)
 gh release create $TAG `
     --title "Project Doomsday Launcher $TAG" `
     --notes "Обновление лаунчера до версии $TAG" `

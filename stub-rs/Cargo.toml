@@ -1,11 +1,11 @@
 [package]
 name = "ramz-stub"
-version = "2.70.59"
+version = "2.70.60"
 edition = "2021"
 description = "Project Doomsday Launcher Stub"
 
 [[bin]]
-name = "Ramz-Launcher"
+name = "Project-Doomsday-Launcher"
 path = "src/main.rs"
 
 [dependencies]

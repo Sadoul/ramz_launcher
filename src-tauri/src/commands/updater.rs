@@ -200,6 +200,8 @@ pub async fn check_launcher_update() -> Result<UpdateInfo, String> {
     let mut installer_url = String::new();
     let mut file_size: u64 = 0;
 
+    // Ищем main launcher .exe (без NSIS). Имя как в Cargo.toml package.name:
+    // project-doomsday-launcher.exe (новое) или ramz-launcher.exe (легаси).
     for asset in &assets {
         let name = asset["name"].as_str().unwrap_or("");
         let url = asset["browser_download_url"]
@@ -209,12 +211,13 @@ pub async fn check_launcher_update() -> Result<UpdateInfo, String> {
         let size = asset["size"].as_u64().unwrap_or(0);
         launcher_log(&format!("[updater] Asset: {} ({} bytes)", name, size));
 
-        if (name.ends_with("_x64-setup.exe") || name.ends_with("-setup.exe"))
-            && !name.contains("debug")
+        let n = name.to_lowercase();
+        if (n == "project-doomsday-launcher.exe" || n == "ramz-launcher.exe")
+            && !n.contains("debug")
         {
             installer_url = url;
             file_size = size;
-            launcher_log(&format!("[updater] Selected installer: {}", name));
+            launcher_log(&format!("[updater] Selected main launcher exe: {}", name));
         }
     }
 
@@ -279,7 +282,7 @@ pub async fn update_launcher(app: tauri::AppHandle) -> Result<String, String> {
         .map_err(|e| e.to_string())?;
 
     let temp_dir = std::env::temp_dir();
-    let download_path = temp_dir.join(format!("ramz-setup-{}.exe", info.latest_version));
+    let download_path = temp_dir.join(format!("pd-launcher-{}.exe", info.latest_version));
     update_log(&format!("[updater] Download target: {}", download_path.display()));
 
     // Retry loop: GitHub download can disconnect mid-stream; on flaky links we
@@ -378,36 +381,67 @@ pub async fn update_launcher(app: tauri::AppHandle) -> Result<String, String> {
 
     write_update_marker();
 
-    apply_nsis_update(app, &download_path)?;
+    apply_exe_update(app, &download_path)?;
 
     Ok("update_started".to_string())
 }
 
-fn apply_nsis_update(app: tauri::AppHandle, installer: &PathBuf) -> Result<(), String> {
-    update_log(&format!("[updater] Preparing NSIS update script: {}", installer.display()));
+// Без NSIS: подменяем main launcher .exe напрямую.
+//   1. Текущий процесс держит занятым свой .exe — переименовываем его в .old.
+//   2. Кладём свежескачанный .exe на место текущего.
+//   3. PowerShell ждёт пока процесс умрёт, запускает новый .exe, чистит .old.
+fn apply_exe_update(app: tauri::AppHandle, new_exe: &PathBuf) -> Result<(), String> {
+    update_log(&format!("[updater] Applying .exe update: {}", new_exe.display()));
 
     #[cfg(windows)]
     {
         let exe = std::env::current_exe()
             .map_err(|e| format!("Не удалось получить путь лаунчера: {e}"))?;
 
-        let installer_str = installer.to_string_lossy().replace('\'', "''");
         let exe_str       = exe.to_string_lossy().replace('\'', "''");
-        let script_path   = std::env::temp_dir().join("ramz_update.ps1");
+        let new_exe_str   = new_exe.to_string_lossy().replace('\'', "''");
+        let old_exe_str   = format!("{}.old", exe_str);
+        let script_path   = std::env::temp_dir().join("pd_update.ps1");
         let script_str    = script_path.to_string_lossy().replace('\'', "''");
 
-        // Script runs NSIS silently (-Wait ensures we block until install is done),
-        // then waits 2 more seconds, then relaunches the launcher.
+        // Скрипт ждёт пока текущий процесс отпустит свой .exe, переименовывает
+        // его в .exe.old, копирует новый .exe на место, запускает его и удаляет
+        // .exe.old. Если что-то падает — оставляем .exe.old, при следующем
+        // запуске можно вручную восстановить.
         let ps1 = format!(
-            "Start-Process -FilePath '{}' -ArgumentList '/S' -Wait\r\nStart-Sleep -Seconds 2\r\nStart-Process -FilePath '{}'\r\nRemove-Item '{}' -ErrorAction SilentlyContinue\r\n",
-            installer_str, exe_str, script_str
+            "\
+$exe = '{exe}'
+$new = '{new_exe}'
+$old = '{old}'
+# Wait until the launcher releases its own .exe (Windows file lock).
+for ($i=0; $i -lt 60; $i++) {{
+    try {{
+        if (Test-Path $old) {{ Remove-Item $old -Force -ErrorAction SilentlyContinue }}
+        Rename-Item -Path $exe -NewName ([System.IO.Path]::GetFileName($old)) -ErrorAction Stop
+        break
+    }} catch {{
+        Start-Sleep -Milliseconds 500
+    }}
+}}
+Copy-Item -Path $new -Destination $exe -Force
+Start-Sleep -Seconds 1
+Start-Process -FilePath $exe
+Start-Sleep -Seconds 2
+Remove-Item $old -Force -ErrorAction SilentlyContinue
+Remove-Item $new -Force -ErrorAction SilentlyContinue
+Remove-Item '{script}' -Force -ErrorAction SilentlyContinue
+",
+            exe = exe_str,
+            new_exe = new_exe_str,
+            old = old_exe_str,
+            script = script_str,
         );
         std::fs::write(&script_path, ps1.as_bytes())
             .map_err(|e| format!("Не удалось записать скрипт обновления: {e}"))?;
         update_log(&format!("[updater] Script written to {}", script_path.display()));
 
-        // Launch the script via Start-Process (ShellExecuteW) so it is NOT inside
-        // the current process's Job Object and survives after this process exits.
+        // Запускаем скрипт через Start-Process чтобы он жил вне Job Object'а
+        // текущего процесса и выжил после app.exit().
         let outer = format!(
             "Start-Process -FilePath powershell -ArgumentList @('-NoProfile','-NonInteractive','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File','{}') -WindowStyle Hidden",
             script_str
@@ -420,7 +454,7 @@ fn apply_nsis_update(app: tauri::AppHandle, installer: &PathBuf) -> Result<(), S
             .stderr(Stdio::null())
             .spawn();
         match result {
-            Ok(_)  => update_log("[updater] Update watcher launched via ShellExecuteW"),
+            Ok(_)  => update_log("[updater] Update watcher launched"),
             Err(e) => update_log(&format!("[updater] Failed to launch watcher: {e}")),
         }
     }

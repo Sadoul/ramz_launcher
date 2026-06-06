@@ -2910,6 +2910,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "project-doomsday-launcher"
+version = "2.70.60"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "dirs 5.0.1",
+ "futures-util",
+ "hex",
+ "open",
+ "raw-window-handle",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha1",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-http",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tokio",
+ "urlencoding",
+ "uuid",
+ "windows 0.58.0",
+ "winreg 0.52.0",
+ "zip",
+]
+
+[[package]]
 name = "psl-types"
 version = "2.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3009,36 +3039,6 @@ name = "r-efi"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
-
-[[package]]
-name = "ramz-launcher"
-version = "2.70.59"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "dirs 5.0.1",
- "futures-util",
- "hex",
- "open",
- "raw-window-handle",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha1",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-http",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tokio",
- "urlencoding",
- "uuid",
- "windows 0.58.0",
- "winreg 0.52.0",
- "zip",
-]
 
 [[package]]
 name = "rand"

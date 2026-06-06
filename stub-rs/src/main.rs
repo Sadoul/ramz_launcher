@@ -22,8 +22,10 @@ struct GitHubAsset {
 
 const GITHUB_REPO: &str = "Sadoul/ramz_launcher";
 #[allow(dead_code)]
-const STUB_ASSET_NAME: &str = "Ramz-Launcher.exe";
-const LAUNCHER_EXE: &str = "ramz-launcher.exe";
+const STUB_ASSET_NAME: &str = "Project-Doomsday-Launcher.exe";
+const LAUNCHER_EXE: &str = "project-doomsday-launcher.exe";
+// Старое имя бинарника — для миграции пользователей со старых установок.
+const LEGACY_LAUNCHER_EXE: &str = "ramz-launcher.exe";
 const LAUNCHER_PRODUCT_NAME: &str = "Project Doomsday Launcher";
 const REG_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Project Doomsday Launcher";
 const STUB_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -40,7 +42,7 @@ fn log(msg: &str) {
 }
 
 fn main() {
-    log(&format!("Ramz-Stub v{} starting", STUB_VERSION));
+    log(&format!("PD-Stub v{} starting", STUB_VERSION));
 
     // Fast path: launcher already installed — launch immediately, no network needed.
     if let Some(path) = find_launcher() {
@@ -51,10 +53,10 @@ fn main() {
         exit(0);
     }
 
-    // Launcher not installed — fetch release and install it.
+    // Launcher not installed — fetch release and install main launcher .exe directly.
     let client = match reqwest::blocking::Client::builder()
-        .user_agent("Ramz-Stub/1.0")
-        .timeout(std::time::Duration::from_secs(8))
+        .user_agent("ProjectDoomsday-Stub/1.0")
+        .timeout(std::time::Duration::from_secs(15))
         .build()
     {
         Ok(c) => c,
@@ -72,43 +74,46 @@ fn main() {
 
     log(&format!("Release: {}", release.tag_name));
 
-    // 4. Launcher NOT installed — find the NSIS setup exe in release assets and run it silently
-    log("Launcher not installed — looking for NSIS installer in release assets");
-    let installer_asset = release.assets.iter().find(|a| {
+    // Без NSIS: ищем сразу main launcher .exe в assets и кладём в Programs.
+    log("Launcher not installed — looking for main launcher .exe in release assets");
+    let main_asset = release.assets.iter().find(|a| {
         let n = a.name.to_lowercase();
-        (n.ends_with("_x64-setup.exe") || n.ends_with("-setup.exe")) && !n.contains("debug")
+        n == LAUNCHER_EXE.to_lowercase() || n == LEGACY_LAUNCHER_EXE.to_lowercase()
     });
 
-    if let Some(asset) = installer_asset {
-        log(&format!("Downloading NSIS installer: {}", asset.name));
-        if let Some(tmp) = download_file(&client, &asset.browser_download_url, "Ramz-Setup.exe") {
-            log("Running NSIS installer silently...");
-            let status = Command::new(&tmp)
-                .arg("/S")
-                .creation_flags(CREATE_NO_WINDOW)
-                .status();
-            let _ = std::fs::remove_file(&tmp);
-
-            log(&format!("NSIS installer exited: {:?}", status));
-
-            // Give the installer a moment to finish writing files
-            std::thread::sleep(std::time::Duration::from_secs(3));
-
-            if let Some(path) = find_launcher() {
-                log(&format!("Launching after install: {:?}", path));
-                let _ = Command::new(&path).spawn();
-            } else {
-                log("Launcher not found after NSIS install");
-                show_error("Установка завершена, но лаунчер не найден. Попробуйте перезапустить.");
+    if let Some(asset) = main_asset {
+        log(&format!("Downloading main launcher: {}", asset.name));
+        let install_dir = match install_dir() {
+            Some(d) => d,
+            None => {
+                show_error("Не удалось определить папку установки (LOCALAPPDATA).");
+                exit(1);
             }
+        };
+        if let Err(e) = std::fs::create_dir_all(&install_dir) {
+            log(&format!("Failed to create install dir: {e}"));
+            show_error("Не удалось создать папку установки.");
+            exit(1);
+        }
+        let target = install_dir.join(LAUNCHER_EXE);
+        if download_to_path(&client, &asset.browser_download_url, &target).is_some() {
+            log(&format!("Launching after download: {:?}", target));
+            let _ = Command::new(&target).spawn();
         } else {
-            log("Failed to download NSIS installer");
-            show_error("Не удалось скачать установщик. Проверьте интернет-соединение.");
+            log("Failed to download main launcher .exe");
+            show_error("Не удалось скачать лаунчер. Проверьте интернет-соединение.");
         }
     } else {
-        log("No NSIS installer found in release assets");
-        show_error("Установщик не найден в последнем релизе на GitHub.");
+        log("No main launcher .exe found in release assets");
+        show_error("Лаунчер не найден в последнем релизе на GitHub.");
     }
+}
+
+fn install_dir() -> Option<PathBuf> {
+    let local = std::env::var("LOCALAPPDATA").ok()?;
+    Some(PathBuf::from(local)
+        .join("Programs")
+        .join(LAUNCHER_PRODUCT_NAME))
 }
 
 fn fetch_release(client: &reqwest::blocking::Client, url: &str) -> Option<GitHubRelease> {
@@ -120,6 +125,7 @@ fn fetch_release(client: &reqwest::blocking::Client, url: &str) -> Option<GitHub
     resp.json().ok()
 }
 
+#[allow(dead_code)]
 fn download_file(client: &reqwest::blocking::Client, url: &str, tmp_name: &str) -> Option<PathBuf> {
     let resp = client.get(url).send().ok()?;
     if !resp.status().is_success() {
@@ -131,33 +137,63 @@ fn download_file(client: &reqwest::blocking::Client, url: &str, tmp_name: &str) 
     Some(tmp)
 }
 
+fn download_to_path(client: &reqwest::blocking::Client, url: &str, target: &PathBuf) -> Option<()> {
+    let resp = client.get(url).send().ok()?;
+    if !resp.status().is_success() {
+        log(&format!("Download HTTP {}", resp.status()));
+        return None;
+    }
+    let bytes = resp.bytes().ok()?;
+    std::fs::write(target, &bytes).ok()?;
+    Some(())
+}
+
 fn find_launcher() -> Option<PathBuf> {
     use winreg::enums::*;
     use winreg::RegKey;
 
-    // 1. Check registry (set by Tauri NSIS currentUser installer)
+    let local = std::env::var("LOCALAPPDATA").ok();
+
+    // 1. New install path (без NSIS): %LOCALAPPDATA%\Programs\<productName>\<binary>.exe
+    if let Some(ref l) = local {
+        let new_path = PathBuf::from(l)
+            .join("Programs")
+            .join(LAUNCHER_PRODUCT_NAME)
+            .join(LAUNCHER_EXE);
+        log(&format!("Primary path check: {:?}", new_path));
+        if new_path.exists() {
+            return Some(new_path);
+        }
+    }
+
+    // 2. Registry (старая установка через NSIS, для миграции).
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     if let Ok(key) = hkcu.open_subkey(REG_KEY) {
         if let Ok(raw) = key.get_value::<String, _>("InstallLocation") {
             let dir = raw.trim_matches('"').trim_end_matches('\\');
-            let exe = PathBuf::from(dir).join(LAUNCHER_EXE);
-            log(&format!("Registry InstallLocation check: {:?}", exe));
-            if exe.exists() {
-                return Some(exe);
+            for exe in &[LAUNCHER_EXE, LEGACY_LAUNCHER_EXE] {
+                let path = PathBuf::from(dir).join(exe);
+                log(&format!("Registry InstallLocation check: {:?}", path));
+                if path.exists() {
+                    return Some(path);
+                }
             }
         }
     }
 
-    // 2. Fallback: standard Tauri NSIS currentUser install path
-    //    %LOCALAPPDATA%\Programs\<productName>\<binary>.exe
-    if let Ok(local) = std::env::var("LOCALAPPDATA") {
-        let path = PathBuf::from(&local)
-            .join("Programs")
-            .join(LAUNCHER_PRODUCT_NAME)
-            .join(LAUNCHER_EXE);
-        log(&format!("Fallback path check: {:?}", path));
-        if path.exists() {
-            return Some(path);
+    // 3. Legacy install path (старое имя продукта "Ramz Launcher" + старый бинарь).
+    if let Some(ref l) = local {
+        for product in &[LAUNCHER_PRODUCT_NAME, "Ramz Launcher"] {
+            for exe in &[LAUNCHER_EXE, LEGACY_LAUNCHER_EXE] {
+                let path = PathBuf::from(l)
+                    .join("Programs")
+                    .join(product)
+                    .join(exe);
+                if path.exists() {
+                    log(&format!("Legacy path hit: {:?}", path));
+                    return Some(path);
+                }
+            }
         }
     }
 
@@ -174,13 +210,15 @@ fn launch_if_installed() {
 }
 
 fn close_running_launcher() {
-    let _ = Command::new("taskkill")
-        .args(["/IM", LAUNCHER_EXE, "/F", "/T"])
-        .creation_flags(CREATE_NO_WINDOW)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .stdin(std::process::Stdio::null())
-        .status();
+    for exe in &[LAUNCHER_EXE, LEGACY_LAUNCHER_EXE] {
+        let _ = Command::new("taskkill")
+            .args(["/IM", exe, "/F", "/T"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .stdin(std::process::Stdio::null())
+            .status();
+    }
 }
 
 fn show_error(msg: &str) {
