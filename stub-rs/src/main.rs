@@ -1,4 +1,4 @@
-//! Ramz Launcher Stub — single exe bootstrap
+//! Project Doomsday Launcher Stub — single exe bootstrap
 //! Checks if launcher is installed, installs via NSIS if not, then launches it.
 //! On subsequent runs: just launches the already-installed launcher.
 
@@ -24,8 +24,8 @@ const GITHUB_REPO: &str = "Sadoul/ramz_launcher";
 #[allow(dead_code)]
 const STUB_ASSET_NAME: &str = "Ramz-Launcher.exe";
 const LAUNCHER_EXE: &str = "ramz-launcher.exe";
-const LAUNCHER_PRODUCT_NAME: &str = "Ramz Launcher";
-const REG_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Ramz Launcher";
+const LAUNCHER_PRODUCT_NAME: &str = "Project Doomsday Launcher";
+const REG_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Project Doomsday Launcher";
 const STUB_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -186,7 +186,7 @@ fn close_running_launcher() {
 fn show_error(msg: &str) {
     let _ = Command::new("cmd")
         .args(["/c", &format!(
-            "mshta \"javascript:var sh=new ActiveXObject('WScript.Shell');sh.Popup('{}',0,'Ramz Launcher',16);close()\"",
+            "mshta \"javascript:var sh=new ActiveXObject('WScript.Shell');sh.Popup('{}',0,'Project Doomsday Launcher',16);close()\"",
             msg
         )])
         .creation_flags(CREATE_NO_WINDOW)

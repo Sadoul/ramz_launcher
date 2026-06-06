@@ -1,8 +1,8 @@
 [package]
 name = "ramz-stub"
-version = "2.70.58"
+version = "2.70.59"
 edition = "2021"
-description = "Ramz Launcher Stub"
+description = "Project Doomsday Launcher Stub"
 
 [[bin]]
 name = "Ramz-Launcher"

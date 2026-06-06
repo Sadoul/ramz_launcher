@@ -1,4 +1,4 @@
-# release.ps1 - локальная сборка и публикация релиза Ramz Launcher
+# release.ps1 - локальная сборка и публикация релиза Project Doomsday Launcher
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -31,7 +31,7 @@ while (git tag -l $TAG) {
 
 Write-Host ""
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "  Ramz Launcher - Release $TAG" -ForegroundColor Cyan
+Write-Host "  Project Doomsday Launcher - Release $TAG" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -85,7 +85,7 @@ if ($LASTEXITCODE -ne 0) { throw "Ошибка git push (tag $TAG)" }
 
 $releaseFiles = @($nsisFiles[0].FullName, (Resolve-Path $stubExe).Path)
 gh release create $TAG `
-    --title "Ramz Launcher $TAG" `
+    --title "Project Doomsday Launcher $TAG" `
     --notes "Обновление лаунчера до версии $TAG" `
     @releaseFiles
 

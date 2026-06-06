@@ -321,28 +321,39 @@ export default function AdminPanel({ username, isOwner, onDiscordUrlChange }: Pr
   const uploadModPath = async (path: string) => {
     if (!manifest || !path) return;
     if (!githubToken.trim()) {
-      notify("Введите GitHub token перед загрузкой мода");
+      notify("Введите GitHub token перед загрузкой");
       return;
     }
+    const isZip = path.toLowerCase().endsWith(".zip");
     setUploadingMod(true);
-    notify(`Загружаю мод ${path}...`);
+    notify(isZip ? `Загружаю ZIP ${path}...` : `Загружаю мод ${path}...`);
     try {
 
-      const entry = await invoke<BuildFileEntry>("upload_build_mod", {
+      const entries = await invoke<BuildFileEntry[]>("upload_build_mod", {
         build: activeBuild,
         githubToken,
         filePath: path,
         targetName: null,
       });
-      setManifest(prev => prev ? {
-        ...prev,
-        mods: [...prev.mods.filter(m => m.name !== entry.name), entry],
-      } : prev);
+      if (entries.length === 0) {
+        notify("Не удалось загрузить файл: пустой результат");
+        return;
+      }
+      setManifest(prev => {
+        if (!prev) return prev;
+        const newPaths = new Set(entries.map(e => e.path));
+        const kept = prev.mods.filter(m => !newPaths.has(m.path));
+        return { ...prev, mods: [...kept, ...entries] };
+      });
       if (repoTree.length > 0) loadRepoTree();
-      notify(`Мод ${entry.name} загружен. Нажмите «Сохранить manifest», чтобы он вошёл в сборку.`);
+      if (entries.length === 1 && !isZip) {
+        notify(`Мод ${entries[0].name} загружен. Нажмите «Сохранить manifest», чтобы он вошёл в сборку.`);
+      } else {
+        notify(`ZIP распакован: ${entries.length} файлов загружено в emotes/, mods/, resourcepacks/ и т.д. Нажмите «Сохранить manifest».`);
+      }
 
     } catch (e) {
-      notify(`Не удалось загрузить мод: ${String(e)}`);
+      notify(`Не удалось загрузить файл: ${String(e)}`);
     } finally {
       setUploadingMod(false);
     }

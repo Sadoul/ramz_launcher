@@ -179,7 +179,7 @@ export default function AuthPanel({ onLogin }: AuthPanelProps) {
             <img src="/icons/logo.png" alt="Ramz" className="auth-modal-logo" draggable={false} />
             <div className="auth-modal-logo-glow" />
           </div>
-          <h1 className="auth-modal-title">Ramz Launcher</h1>
+          <h1 className="auth-modal-title">Project Doomsday Launcher</h1>
           {showPasswordPrompt ? (
             <p className="auth-modal-subtitle">Введите пароль администратора</p>
           ) : (
@@ -253,7 +253,7 @@ export default function AuthPanel({ onLogin }: AuthPanelProps) {
 
         <motion.div className="auth-modal-footer" custom={3} variants={itemVariants} initial="hidden" animate="visible">
           <div className="auth-modal-divider" />
-          <span className="auth-modal-version">Ramz Launcher</span>
+          <span className="auth-modal-version">Project Doomsday Launcher</span>
         </motion.div>
       </motion.div>
     </motion.div>
