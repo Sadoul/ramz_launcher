@@ -983,37 +983,13 @@ fn parse_zip_entries(zip_bytes: &[u8]) -> Result<Vec<(String, Vec<u8>)>, String>
         return Err("ZIP файл пуст".to_string());
     }
 
-    // Detect wrapper folder, но не срезай категорийные папки.
-    let root_prefix: String = {
-        let first = &files[0].0;
-        if let Some(pos) = first.find('/') {
-            let candidate_name = &first[..pos];
-            if BUILD_CATEGORY_DIRS.contains(&candidate_name.to_lowercase().as_str()) {
-                // Это категорийная папка (emotes/, mods/, ...) — оставляем как есть.
-                String::new()
-            } else {
-                let candidate = format!("{}/", candidate_name);
-                if files.iter().all(|(p, _)| p.starts_with(&candidate)) {
-                    candidate
-                } else {
-                    String::new()
-                }
-            }
-        } else {
-            String::new()
-        }
-    };
-
+    // Структура ZIP грузится строго «как есть»: никакие папки-обёртки НЕ
+    // срезаются. Что задал пользователь во внутренней структуре архива — то и
+    // коммитится в репозиторий сборки по тем же путям. Так вложенные папки
+    // (например `shaderpacks/shader.zip`) сохраняются, а их содержимое НЕ
+    // выкидывается в корень сборки.
     let result: Vec<(String, Vec<u8>)> = files
         .into_iter()
-        .map(|(p, c)| {
-            let stripped = if !root_prefix.is_empty() && p.starts_with(&root_prefix) {
-                p[root_prefix.len()..].to_string()
-            } else {
-                p
-            };
-            (stripped, c)
-        })
         .filter(|(p, _)| {
             !p.is_empty()
                 && !p.starts_with("__MACOSX")

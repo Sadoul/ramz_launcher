@@ -1,6 +1,6 @@
 [package]
 name = "pd-launcher-core"
-version = "2.70.61"
+version = "2.70.62"
 description = "Project Doomsday Minecraft Launcher"
 authors = ["Sadoul"]
 edition = "2021"
