@@ -21,15 +21,24 @@ struct GitHubAsset {
 }
 
 const GITHUB_REPO: &str = "Sadoul/ramz_launcher";
-#[allow(dead_code)]
 const STUB_ASSET_NAME: &str = "Project-Doomsday-Launcher.exe";
 const LAUNCHER_EXE: &str = "pd-launcher-core.exe";
-// Старые имена бинарника — для миграции пользователей со старых установок.
+// Старые имена бинарника — только для поиска уже установленного лаунчера на
+// диске. В список ассетов GitHub их класть НЕЛЬЗЯ: legacy-2 при case-insensitive
+// сравнении совпадает с именем самого stub-ассета (Project-Doomsday-Launcher.exe),
+// из-за чего stub когда-то скачал сам себя как pd-launcher-core.exe и сломал
+// установку. Теперь имена ассетов матчатся отдельным фильтром.
 const LEGACY_LAUNCHER_EXE: &str = "ramz-launcher.exe";
 const LEGACY_LAUNCHER_EXE_2: &str = "project-doomsday-launcher.exe";
 const LAUNCHER_PRODUCT_NAME: &str = "Project Doomsday Launcher";
 const REG_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Project Doomsday Launcher";
 const STUB_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// Главный лаунчер собирается с WebView2 и весит ~25 МБ. Сам stub весит ~4 МБ.
+// Если на диске под именем pd-launcher-core.exe лежит файл меньше этого порога —
+// это битая установка (например, сам stub, сохранённый под чужим именем), её
+// надо игнорировать и перекачивать.
+const MIN_LAUNCHER_BYTES: u64 = 8 * 1024 * 1024;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 #[allow(dead_code)]
@@ -76,12 +85,17 @@ fn main() {
     log(&format!("Release: {}", release.tag_name));
 
     // Без NSIS: ищем сразу main launcher .exe в assets и кладём в Programs.
+    // ВАЖНО: имя самого stub-ассета явно исключаем — иначе при case-insensitive
+    // сравнении legacy-имя "project-doomsday-launcher.exe" совпадает с
+    // "Project-Doomsday-Launcher.exe" и stub качает сам себя.
     log("Launcher not installed — looking for main launcher .exe in release assets");
+    let stub_name_lower = STUB_ASSET_NAME.to_lowercase();
     let main_asset = release.assets.iter().find(|a| {
         let n = a.name.to_lowercase();
-        n == LAUNCHER_EXE.to_lowercase()
-            || n == LEGACY_LAUNCHER_EXE.to_lowercase()
-            || n == LEGACY_LAUNCHER_EXE_2.to_lowercase()
+        if n == stub_name_lower {
+            return false;
+        }
+        n == LAUNCHER_EXE.to_lowercase() || n == LEGACY_LAUNCHER_EXE.to_lowercase()
     });
 
     if let Some(asset) = main_asset {
@@ -151,6 +165,26 @@ fn download_to_path(client: &reqwest::blocking::Client, url: &str, target: &Path
     Some(())
 }
 
+fn is_valid_launcher(path: &PathBuf) -> bool {
+    match std::fs::metadata(path) {
+        Ok(m) => {
+            if m.len() < MIN_LAUNCHER_BYTES {
+                log(&format!(
+                    "Rejecting suspiciously small file ({} bytes): {:?}",
+                    m.len(), path
+                ));
+                // Это почти наверняка stub, ошибочно сохранённый под именем
+                // главного лаунчера старым багом. Удаляем, чтобы перекачать.
+                let _ = std::fs::remove_file(path);
+                false
+            } else {
+                true
+            }
+        }
+        Err(_) => false,
+    }
+}
+
 fn find_launcher() -> Option<PathBuf> {
     use winreg::enums::*;
     use winreg::RegKey;
@@ -164,7 +198,7 @@ fn find_launcher() -> Option<PathBuf> {
             .join(LAUNCHER_PRODUCT_NAME)
             .join(LAUNCHER_EXE);
         log(&format!("Primary path check: {:?}", new_path));
-        if new_path.exists() {
+        if new_path.exists() && is_valid_launcher(&new_path) {
             return Some(new_path);
         }
     }
@@ -179,7 +213,7 @@ fn find_launcher() -> Option<PathBuf> {
             for exe in &all_exes {
                 let path = PathBuf::from(dir).join(exe);
                 log(&format!("Registry InstallLocation check: {:?}", path));
-                if path.exists() {
+                if path.exists() && is_valid_launcher(&path) {
                     return Some(path);
                 }
             }
@@ -194,7 +228,7 @@ fn find_launcher() -> Option<PathBuf> {
                     .join("Programs")
                     .join(product)
                     .join(exe);
-                if path.exists() {
+                if path.exists() && is_valid_launcher(&path) {
                     log(&format!("Legacy path hit: {:?}", path));
                     return Some(path);
                 }
