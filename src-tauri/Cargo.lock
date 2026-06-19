@@ -2572,7 +2572,7 @@ dependencies = [
 
 [[package]]
 name = "pd-launcher-core"
-version = "2.70.63"
+version = "2.70.64"
 dependencies = [
  "base64 0.22.1",
  "chrono",

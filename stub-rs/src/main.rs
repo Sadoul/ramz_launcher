@@ -64,9 +64,13 @@ fn main() {
     }
 
     // Launcher not installed — fetch release and install main launcher .exe directly.
+    // Total timeout покрывает и скачивание самого .exe (~25 МБ): 15 с не хватало
+    // даже на нормальном канале, и качание срывалось. connect_timeout оставляем
+    // коротким, чтобы быстро падать, если GitHub недоступен.
     let client = match reqwest::blocking::Client::builder()
         .user_agent("ProjectDoomsday-Stub/1.0")
-        .timeout(std::time::Duration::from_secs(15))
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(300))
         .build()
     {
         Ok(c) => c,
