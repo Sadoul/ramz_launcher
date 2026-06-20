@@ -1,6 +1,6 @@
 [package]
 name = "ramz-stub"
-version = "2.70.65"
+version = "2.70.66"
 edition = "2021"
 description = "Project Doomsday Launcher Stub"
 

@@ -200,8 +200,16 @@ pub async fn check_launcher_update() -> Result<UpdateInfo, String> {
     let mut installer_url = String::new();
     let mut file_size: u64 = 0;
 
-    // Ищем main launcher .exe (без NSIS). Имя как в Cargo.toml package.name:
-    // project-doomsday-launcher.exe (новое) или ramz-launcher.exe (легаси).
+    // Ищем main launcher .exe. ВНИМАНИЕ: имя stub-ассета
+    // "Project-Doomsday-Launcher.exe" в lowercase совпадает с легаси-именем
+    // main-лаунчера "project-doomsday-launcher.exe". Из-за этого старая версия
+    // апдейтера в цикле без early-return скачивала stub (~4 МБ) поверх настоящего
+    // лаунчера (~25 МБ), и после "обновления" pd-launcher-core.exe становился
+    // stub'ом → лаунчер вообще переставал стартовать. Поэтому:
+    //   1. Stub-имя явно исключаем.
+    //   2. Берём ПЕРВОЕ совпадение и break — не даём другим ассетам перезаписать.
+    //   3. Доп. валидация по размеру делается уже после скачивания (apply step).
+    const STUB_ASSET_NAME_LOWER: &str = "project-doomsday-launcher.exe";
     for asset in &assets {
         let name = asset["name"].as_str().unwrap_or("");
         let url = asset["browser_download_url"]
@@ -212,14 +220,14 @@ pub async fn check_launcher_update() -> Result<UpdateInfo, String> {
         launcher_log(&format!("[updater] Asset: {} ({} bytes)", name, size));
 
         let n = name.to_lowercase();
-        if (n == "pd-launcher-core.exe"
-            || n == "project-doomsday-launcher.exe"
-            || n == "ramz-launcher.exe")
-            && !n.contains("debug")
-        {
+        if n == STUB_ASSET_NAME_LOWER {
+            continue;
+        }
+        if (n == "pd-launcher-core.exe" || n == "ramz-launcher.exe") && !n.contains("debug") {
             installer_url = url;
             file_size = size;
             launcher_log(&format!("[updater] Selected main launcher exe: {}", name));
+            break;
         }
     }
 
@@ -373,6 +381,22 @@ pub async fn update_launcher(app: tauri::AppHandle) -> Result<String, String> {
 
         update_log(&format!("[updater] Download finished: {} bytes", downloaded));
         break;
+    }
+
+    // Sanity check: настоящий main-лаунчер собирается с WebView2 и весит ~25 МБ.
+    // Stub весит ~4 МБ. Если приехало явно меньше — это битый ассет (старый
+    // updater уже ловил случай, когда вместо main скачивался stub и подменял
+    // лаунчер на самого себя). Отказываем в апдейте до релиза правильного файла.
+    const MIN_LAUNCHER_BYTES: u64 = 8 * 1024 * 1024;
+    let actual_size = fs::metadata(&download_path).map(|m| m.len()).unwrap_or(0);
+    if actual_size < MIN_LAUNCHER_BYTES {
+        let _ = fs::remove_file(&download_path);
+        let msg = format!(
+            "Скачанный файл подозрительно мал ({} байт). Обновление отменено, чтобы не сломать лаунчер.",
+            actual_size
+        );
+        update_log(&format!("[updater] Aborting apply: {}", msg));
+        return Err(msg);
     }
 
     emit("applying", total, total, 0, "Установка обновления...");
