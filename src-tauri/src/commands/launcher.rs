@@ -609,11 +609,66 @@ fn parse_modded_version(version: &str) -> Option<(String, String)> {
 }
 
 
-fn find_installed_forge(mc_dir: &PathBuf, mc_version: &str, loader: &str) -> Option<String> {
+fn find_installed_forge(
+    mc_dir: &PathBuf,
+    mc_version: &str,
+    loader: &str,
+    pinned_loader_version: Option<&str>,
+) -> Option<String> {
     let versions_dir = mc_dir.join("versions");
     if !versions_dir.exists() {
         return None;
     }
+
+    // Если в манифесте сборки прописана конкретная версия лоадера — берём
+    // ТОЛЬКО её, не подсовываем «похожую» из versions/. Иначе при апгрейде
+    // (21.1.230 → 21.1.233) лаунчер находил старую папку и продолжал запускать
+    // её, игнорируя свежий pinned. Для forge формат версии-папки —
+    // "<mc>-forge-<ver>" (либо просто содержит pinned), для neoforge —
+    // "neoforge-<ver>".
+    if let Some(pinned) = pinned_loader_version {
+        let pinned = pinned.trim();
+        if !pinned.is_empty() {
+            let exact_dir = match loader {
+                "neoforge" => format!("neoforge-{}", pinned),
+                _ => format!("{}-forge-{}", mc_version, pinned),
+            };
+            let exact_path = versions_dir.join(&exact_dir);
+            let exact_json = exact_path.join(format!("{}.json", exact_dir));
+            if exact_json.exists() {
+                log(&format!("[{}] Found pinned install: {}", loader, exact_dir));
+                return Some(exact_dir);
+            }
+
+            // Fallback: пройти по versions/, найти папку содержащую pinned —
+            // на случай нестандартного именования. Версии, не содержащие
+            // pinned, игнорируются, иначе вернётся старая 230.
+            if let Ok(entries) = fs::read_dir(&versions_dir) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let matches_loader = match loader {
+                        "neoforge" => name.contains("neoforge"),
+                        _ => name.contains("forge") && !name.contains("neoforge"),
+                    };
+                    if matches_loader && name.contains(pinned) {
+                        let json = entry.path().join(format!("{}.json", name));
+                        if json.exists() {
+                            log(&format!("[{}] Found pinned install (fuzzy): {}", loader, name));
+                            return Some(name);
+                        }
+                    }
+                }
+            }
+
+            log(&format!(
+                "[{}] Pinned version {} not installed yet — будет инсталляция",
+                loader, pinned
+            ));
+            return None;
+        }
+    }
+
+    // Pinned-версии нет — старое поведение: любая подходящая под MC-версию.
     // NeoForge names its versions like "21.1.230" (without the leading "1."),
     // so a directory called "neoforge-21.1.230" does NOT contain the literal
     // string "1.21.1". For neoforge we match on the version-without-1.-prefix
@@ -887,6 +942,7 @@ async fn run_modded_installer(
     installer_url: &str,
     loader: &str,
     mc_version: &str,
+    expected_loader_version: Option<&str>,
 ) -> Result<String, String> {
     check_launch_cancelled()?;
 
@@ -994,7 +1050,7 @@ async fn run_modded_installer(
     log(&format!("[{}] Installer completed successfully (exit 0)", loader));
 
     set_progress(loader, 3.0, 4.0, "Поиск установленной версии...");
-    let found = find_installed_forge(mc_dir, mc_version, loader)
+    let found = find_installed_forge(mc_dir, mc_version, loader, expected_loader_version)
         .ok_or_else(|| format!("[{}] Installer succeeded but version not found in versions dir", loader))?;
 
     log(&format!("[{}] Installed version: {}", loader, found));
@@ -1035,7 +1091,7 @@ async fn install_forge(
             )
         });
 
-    run_modded_installer(client, java_path, mc_dir, &installer_url, "forge", mc_version).await
+    run_modded_installer(client, java_path, mc_dir, &installer_url, "forge", mc_version, Some(&forge_ver)).await
 }
 
 
@@ -1068,7 +1124,7 @@ async fn install_neoforge(
         });
 
     let mc_version = version_str_to_mc(version_str);
-    run_modded_installer(client, java_path, mc_dir, &installer_url, "neoforge", &mc_version).await
+    run_modded_installer(client, java_path, mc_dir, &installer_url, "neoforge", &mc_version, Some(&neo_ver)).await
 }
 
 fn version_str_to_mc(s: &str) -> String {
@@ -1463,7 +1519,7 @@ pub async fn launch_game(
 
         match loader.as_str() {
             "forge" => {
-                if let Some(existing) = find_installed_forge(&mc_dir, &mc_ver, "forge") {
+                if let Some(existing) = find_installed_forge(&mc_dir, &mc_ver, "forge", pinned_loader_version.as_deref()) {
                     existing
                 } else {
                     log(&format!("[forge] Not installed, starting installation for MC {}", mc_ver));
@@ -1482,7 +1538,7 @@ pub async fn launch_game(
                                 ));
                                 set_progress("forge", 0.0, 4.0, "Installer не сработал, пробуем готовую сборку...");
                                 unpack_prebuilt_loader(&client, &mc_dir, url, "forge").await?;
-                                find_installed_forge(&mc_dir, &mc_ver, "forge").ok_or_else(|| {
+                                find_installed_forge(&mc_dir, &mc_ver, "forge", pinned_loader_version.as_deref()).ok_or_else(|| {
                                     "[forge] Prebuilt pack распакован, но версия не найдена в versions/".to_string()
                                 })?
                             } else {
@@ -1493,7 +1549,7 @@ pub async fn launch_game(
                 }
             }
             "neoforge" => {
-                if let Some(existing) = find_installed_forge(&mc_dir, &mc_ver, "neoforge") {
+                if let Some(existing) = find_installed_forge(&mc_dir, &mc_ver, "neoforge", pinned_loader_version.as_deref()) {
                     existing
                 } else {
                     log(&format!("[neoforge] Not installed, starting installation for {}", mc_ver));
@@ -1513,7 +1569,7 @@ pub async fn launch_game(
                                 ));
                                 set_progress("neoforge", 0.0, 4.0, "Installer не сработал, пробуем готовую сборку...");
                                 unpack_prebuilt_loader(&client, &mc_dir, url, "neoforge").await?;
-                                find_installed_forge(&mc_dir, &mc_ver, "neoforge").ok_or_else(|| {
+                                find_installed_forge(&mc_dir, &mc_ver, "neoforge", pinned_loader_version.as_deref()).ok_or_else(|| {
                                     "[neoforge] Prebuilt pack распакован, но версия не найдена в versions/".to_string()
                                 })?
                             } else {
