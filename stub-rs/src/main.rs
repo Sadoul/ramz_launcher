@@ -59,7 +59,7 @@ fn main() {
         log(&format!("Launcher found (fast path): {:?}", path));
         close_running_launcher();
         std::thread::sleep(std::time::Duration::from_millis(300));
-        let _ = Command::new(&path).spawn();
+        spawn_and_supervise(&path);
         exit(0);
     }
 
@@ -119,7 +119,7 @@ fn main() {
         let target = install_dir.join(LAUNCHER_EXE);
         if download_to_path(&client, &asset.browser_download_url, &target).is_some() {
             log(&format!("Launching after download: {:?}", target));
-            let _ = Command::new(&target).spawn();
+            spawn_and_supervise(&target);
         } else {
             log("Failed to download main launcher .exe");
             show_error("Не удалось скачать лаунчер. Проверьте интернет-соединение.");
@@ -128,6 +128,50 @@ fn main() {
         log("No main launcher .exe found in release assets");
         show_error("Лаунчер не найден в последнем релизе на GitHub.");
     }
+}
+
+/// Spawn the main launcher, watch it for ~2 seconds, and if it dies almost
+/// immediately — show a popup explaining what happened. Без этого пользователь
+/// видит «ничего не происходит» при тихих падениях лаунчера (WebView2, отказ
+/// антивируса, сломанный bundle и т.п.).
+fn spawn_and_supervise(path: &PathBuf) {
+    let mut child = match Command::new(path).spawn() {
+        Ok(c) => c,
+        Err(e) => {
+            log(&format!("Spawn failed: {}", e));
+            show_error(&format!(
+                "Не удалось запустить лаунчер: {}\n\nПуть: {}",
+                e,
+                path.display()
+            ));
+            return;
+        }
+    };
+
+    // Дёргаем try_wait несколько раз: процесс жив дольше 2 секунд — считаем,
+    // что окно нормально стартует.
+    let start = std::time::Instant::now();
+    while start.elapsed() < std::time::Duration::from_millis(2000) {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let code = status.code().unwrap_or(-1);
+                log(&format!("Launcher died early with code {}", code));
+                show_error(&format!(
+                    "Лаунчер запустился, но сразу закрылся (код {}). \n\nЧасто это означает, что не установлен Microsoft Edge WebView2 Runtime. Скачайте установщик: https://go.microsoft.com/fwlink/p/?LinkId=2124703",
+                    code
+                ));
+                return;
+            }
+            Ok(None) => {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+            Err(e) => {
+                log(&format!("try_wait error: {}", e));
+                return;
+            }
+        }
+    }
+    log("Launcher still alive after 2s — assuming OK");
 }
 
 fn install_dir() -> Option<PathBuf> {
